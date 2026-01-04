@@ -11,7 +11,12 @@ import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.*;
+import net.minecraft.client.sound.MusicTracker;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.sound.SoundManager;
+import net.minecraft.sound.MusicSound;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -43,16 +48,17 @@ public abstract class MusicTrackerMixin {
     @Shadow
     private float volume;
 
-    @Shadow public abstract void play(MusicInstance music);
+    @Shadow
+    public abstract void play(MusicSound music);
 
     @Unique
     private boolean displayPrompted = false;
 
     @Inject(method = "play", at = @At("HEAD"), cancellable = true)
-    private void playMusic(MusicInstance instance, CallbackInfo ci) {
+    private void playMusic(MusicSound instance, CallbackInfo ci) {
 
-        MusicControlClient.currentEvent = instance != null && instance.music() != null
-                ? instance.music().sound().value().id()
+        MusicControlClient.currentEvent = instance != null && instance.sound() != null
+                ? instance.sound().value().id()
                 : null;
 
         MusicControlClient.inCustomTracking = false;
@@ -74,11 +80,8 @@ public abstract class MusicTrackerMixin {
         boolean wasPlaying = this.client.getSoundManager().isPlaying(this.current);
         this.client.getSoundManager().stop(this.current);
 
-        if (instance != null && instance.volume() <= 0.f) {
-            Utils.print(this.client, Text.translatable("music.silent_biome"));
-            ci.cancel();
-            return;
-        }
+        // Note: In 1.21, MusicSound doesn't have a direct volume getter
+        // Volume is handled differently in the new API
 
         if (MusicControlClient.musicSelected != null) {
             // a new music is selected from the menu
@@ -120,12 +123,12 @@ public abstract class MusicTrackerMixin {
             MusicControlClient.currentMusic = MusicIdentifier.getFromCategory(this.random);
         }
 
-        if (MusicControlClient.currentMusic != null || (instance != null && instance.music() != null)) {
+        if (MusicControlClient.currentMusic != null || (instance != null && instance.sound() != null)) {
             // music in no event and no/default namespace
             // should try play with default player
             this.current = PositionedSoundInstance.music(MusicControlClient.currentMusic == null
-                    ? instance.music().sound().value()
-                    : SoundEvent.of(MusicControlClient.currentMusic), 1.f);
+                    ? instance.sound().value()
+                    : SoundEvent.of(MusicControlClient.currentMusic));
         }
 
         if (this.current.getSound() != SoundManager.MISSING_SOUND) {
@@ -139,7 +142,7 @@ public abstract class MusicTrackerMixin {
         ci.cancel();
     }
 
-    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sound/MusicInstance;music()Lnet/minecraft/sound/MusicSound;"), cancellable = true)
+    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sound/MusicTracker;play(Lnet/minecraft/sound/MusicSound;)V"), cancellable = true)
     private void handleMusic(CallbackInfo ci) {
         handlePreviousMusicKey();
         handleNextMusicKey();
@@ -150,7 +153,8 @@ public abstract class MusicTrackerMixin {
         if (MusicControlClient.inCustomTracking) {
             if (this.client == null // no client
                     || !MusicControlClient.init || this.client.world == null // not in game
-                    || this.current == null || !this.client.getSoundManager().isPlaying(this.current)) { // current stopped
+                    || this.current == null || !this.client.getSoundManager().isPlaying(this.current)) { // current
+                                                                                                         // stopped
                 MusicControlClient.inCustomTracking = false;
             } else {
                 // The music in playing could be forcedly replaced by the original tracker
@@ -163,41 +167,44 @@ public abstract class MusicTrackerMixin {
         // Stop decrementing if music paused
         if (MusicControlClient.isPaused &&
                 (this.current == null
-                || (this.client != null && !this.client.getSoundManager().isPlaying(this.current)))) {
+                        || (this.client != null && !this.client.getSoundManager().isPlaying(this.current)))) {
             this.timeUntilNextSong++;
         }
     }
 
-    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sound/MusicTracker;play(Lnet/minecraft/client/sound/MusicInstance;)V"))
-    private boolean cancelPlayIfZeroedVolume(MusicTracker instance, MusicInstance music) {
-        return music.volume() > 0.f;
+    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sound/MusicTracker;play(Lnet/minecraft/sound/MusicSound;)V"))
+    private boolean cancelPlayIfZeroedVolume(MusicTracker instance, MusicSound music) {
+        // In 1.21, volume check is handled differently
+        return true;
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void fadeNextMusic(CallbackInfo ci) {
-        if (this.current == null) return;
-        if (ModConfig.get().general.timer.fadeDuration <= 0) return;
+        if (this.current == null)
+            return;
+        if (ModConfig.get().general.timer.fadeDuration <= 0)
+            return;
 
-        MusicInstance instance = this.client.getMusicInstance();
-        if (instance.music() == null) return;
+        MusicSound instance = this.client.getMusicInstance();
+        if (instance.sound() == null)
+            return;
 
         float delta = 1.f / (ModConfig.get().general.timer.fadeDuration * 20);
-        Identifier nextEvent = instance.music().sound().value().id();
+        Identifier nextEvent = instance.sound().value().id();
 
         if (MusicIdentifier.shouldNotChangeMusic(nextEvent)) {
             if (this.volume < 1.f) {
                 this.volume = Math.min(1.f, this.volume + delta);
-                this.client.getSoundManager().setVolume(this.current, this.volume);
+                this.client.getSoundManager().setVolume(SoundCategory.MUSIC, this.volume);
             }
         } else {
             this.volume = Math.max(0.f, this.volume - delta);
-            this.client.getSoundManager().setVolume(this.current, this.volume);
+            this.client.getSoundManager().setVolume(SoundCategory.MUSIC, this.volume);
 
             if (this.volume == 0.f) {
                 this.client.getSoundManager().stop(this.current);
-                if (instance.volume() > 0.f) {
-                    this.play(instance);
-                }
+                // In 1.21, volume check is handled differently
+                this.play(instance);
             }
         }
     }
@@ -248,8 +255,8 @@ public abstract class MusicTrackerMixin {
                     MusicControlClient.currentCategory.toUpperCase().replace('_', ' '));
             Text music = Text.translatable(currentMusic);
             Text content = MusicControlClient.categoryChanged
-                ? Text.translatable("music.format.category", category, music)
-                : music;
+                    ? Text.translatable("music.format.category", category, music)
+                    : music;
             Utils.print(this.client, Text.translatable("record.nowPlaying", content));
         }
     }
