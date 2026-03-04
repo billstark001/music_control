@@ -27,6 +27,10 @@ dependencies {
     }
 
     modImplementation include("io.github.cottonmc:LibGui:${project.libgui_version}")
+
+    implementation include("org.jsignal:rx:${project.jsignal_version}") {
+        exclude(group: "org.slf4j")
+    }
 }
 
 base {

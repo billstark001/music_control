@@ -18,6 +18,7 @@ import net.minecraft.client.gui.screen.pack.PackScreen;
 import net.minecraft.resource.ResourcePackManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.jsignal.rx.Signal;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -25,7 +26,7 @@ import java.util.function.Consumer;
 public class ConfigPanel extends WBox {
     protected static boolean isEvent = true;
 
-    protected Button selectedButton;
+    protected final Signal<Button> selectedButtonSignal = Signal.create(null);
     protected SoundConfigPanel soundConfigPanel;
     protected WCardPanel cardPanel = new WCardPanel();
     protected WBox resourcePackCard = new WBox(Axis.VERTICAL);
@@ -102,11 +103,10 @@ public class ConfigPanel extends WBox {
         final int innerWidth = ModConfig.get().cosmetics.gui.width - 4;
 
         BiConsumer<Identifier, Button> onSoundClicked = (Identifier identifier, Button button) -> {
-            if (this.selectedButton != null) {
-                this.selectedButton.setEnabled(true);
-            }
-            this.selectedButton = button;
-            this.selectedButton.setEnabled(false);
+            Button prev = selectedButtonSignal.get();
+            if (prev != null) prev.setEnabled(true);
+            selectedButtonSignal.accept(__ -> button);
+            button.setEnabled(false);
 
             if (this.soundConfigPanel != null) {
                 listsBox.remove(this.soundConfigPanel);
@@ -122,9 +122,10 @@ public class ConfigPanel extends WBox {
             if (soundConfigPanel != null) {
                 listsBox.remove(this.soundConfigPanel);
                 this.soundConfigPanel = null;
-                if (this.selectedButton != null) {
-                    this.selectedButton.setEnabled(true);
-                    this.selectedButton = null;
+                Button prev = selectedButtonSignal.get();
+                if (prev != null) {
+                    prev.setEnabled(true);
+                    selectedButtonSignal.accept(__ -> null);
                 }
             }
         };

@@ -12,6 +12,8 @@ import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.jsignal.rx.Effect;
+import org.jsignal.rx.Signal;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -20,7 +22,10 @@ public class PlayPanel extends WBox {
     protected final static Text NONE_TEXT = Text.translatable("music.none");
     protected final static String SELECTED_KEY = "gui.music_control.label.selected";
 
-    protected Button hoveredButton;
+    private final Signal<Identifier> selectedMusic = Signal.create(null);
+    private final Signal<Button> focusedButton = Signal.create(null);
+    @SuppressWarnings("unused")
+    private final Effect labelEffect;
 
     public PlayPanel() {
         super(Axis.VERTICAL);
@@ -29,34 +34,37 @@ public class PlayPanel extends WBox {
         WLabel selected = new WLabel(Text.translatable(SELECTED_KEY, NONE_TEXT));
         selected.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
+        this.labelEffect = new Effect(() -> {
+            Identifier id = selectedMusic.get();
+            selected.setText(id == null
+                    ? Text.translatable(SELECTED_KEY, NONE_TEXT)
+                    : Text.translatable(SELECTED_KEY, Music.getTranslatedText(id)));
+        });
+        this.labelEffect.run();
+
         BiConsumer<Identifier, Button> onSoundClicked = (Identifier identifier, Button button) -> {
-            if (identifier.equals(MusicControlClient.musicSelected)) {
+            if (identifier.equals(selectedMusic.get())) {
                 MusicControlClient.nextMusic = false;
                 MusicControlClient.musicSelected = null;
-                selected.setText(Text.translatable(SELECTED_KEY, NONE_TEXT));
+                Button prev = focusedButton.get();
+                if (prev != null) prev.releaseFocus();
+                focusedButton.accept(__ -> null);
+                selectedMusic.accept(__ -> null);
             } else {
                 MusicControlClient.nextMusic = true;
                 MusicControlClient.musicSelected = identifier;
-                selected.setText(Text.translatable(SELECTED_KEY, Music.getTranslatedText(identifier)));
-            }
-
-            if (this.hoveredButton != null) {
-                this.hoveredButton.releaseFocus();
-                if (this.hoveredButton.equals(button)) {
-                    this.hoveredButton = null;
-                } else {
-                    this.hoveredButton = button;
-                    this.hoveredButton.requestFocus();
-                }
-            } else {
-                this.hoveredButton = button;
-                this.hoveredButton.requestFocus();
+                Button prev = focusedButton.get();
+                if (prev != null) prev.releaseFocus();
+                focusedButton.accept(__ -> button);
+                button.requestFocus();
+                selectedMusic.accept(__ -> identifier);
             }
         };
 
         Consumer<Boolean> onToggle = (Boolean isEvent) -> {
-            if (this.hoveredButton != null) {
-                this.hoveredButton.requestFocus();
+            Button btn = focusedButton.get();
+            if (btn != null) {
+                btn.requestFocus();
             }
         };
 
