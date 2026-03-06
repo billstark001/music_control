@@ -19,8 +19,12 @@
     "text.autoconfig.music_control.option.general.timer.maxDelay": "音乐之间的最大延迟 [秒]",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[0]": "如果关闭，延迟将固定为最大值。",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[1]": "否则，在最大值的 50%~100% 范围内随机选择。",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration": "切换生物群系时的淡出持续时间 [秒]",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration.@Tooltip": "如果为零则不淡出",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch": "切换生物群系时更换音乐",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch.@Tooltip": "进入新的生物群系时是否切换音乐",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration": "切换生物群系时的淡出持续时间 [秒]",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration.@Tooltip": "如果为零则不淡出",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration": "切换生物群系时的淡入持续时间 [秒]",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration.@Tooltip": "如果为零则不淡入",
 
     "text.autoconfig.music_control.option.general.event": "事件",
     "text.autoconfig.music_control.option.general.event.creativeEventFallback": "创造模式音乐在替代时播放",
@@ -51,6 +55,8 @@
     "text.autoconfig.music_control.option.general.misc.volumeIncrement.@Tooltip": "使用按键绑定时，一次调整音量的百分比",
 
     "text.autoconfig.music_control.option.cosmetics.display": "显示",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast": "显示音乐提示通知",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast.@Tooltip": "当音乐开始播放时显示提示通知",
     "text.autoconfig.music_control.option.cosmetics.display.atMusicStart": "播放音乐时显示名称",
     "text.autoconfig.music_control.option.cosmetics.display.remainingSeconds": "未播放音乐时，显示直到下一首音乐的剩余时间",
     "text.autoconfig.music_control.option.cosmetics.display.type": "音乐名称显示类型",

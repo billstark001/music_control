@@ -19,8 +19,12 @@
     "text.autoconfig.music_control.option.general.timer.maxDelay": "曲間の最大遅延 [s]",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[0]": "オフの場合、遅延は最大まで固定されます。",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[1]": "それ以外の場合、[max/2 ; max]の範囲で選択されます。",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration": "バイオーム切り替え時のフェード時間 [秒]",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration.@Tooltip": "ゼロの場合、フェードしません",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch": "Change music on biome switch",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch.@Tooltip": "Whether to switch music when entering a new biome",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration": "バイオーム切り替え時のフェード時間 [秒]",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration.@Tooltip": "ゼロの場合、フェードしません",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration": "Fade in duration when switching biome [s]",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration.@Tooltip": "Do not fade in if zero",
 
     "text.autoconfig.music_control.option.general.event": "イベント",
     "text.autoconfig.music_control.option.general.event.creativeEventFallback": "フォールバックでクリエイティブ音楽を再生",
@@ -51,6 +55,8 @@
     "text.autoconfig.music_control.option.general.misc.volumeIncrement.@Tooltip": "キーバインドを使用する場合",
 
     "text.autoconfig.music_control.option.cosmetics.display": "ディスプレイ",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast": "Show music toast notification",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast.@Tooltip": "Display a toast notification when music starts playing",
     "text.autoconfig.music_control.option.cosmetics.display.atMusicStart": "音楽が再生されるときにテキストを表示する",
     "text.autoconfig.music_control.option.cosmetics.display.remainingSeconds": "次の音楽までの残り時間を表示する",
     "text.autoconfig.music_control.option.cosmetics.display.type": "表示タイプ",

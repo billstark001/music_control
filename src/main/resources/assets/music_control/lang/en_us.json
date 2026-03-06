@@ -19,8 +19,12 @@
     "text.autoconfig.music_control.option.general.timer.maxDelay": "Maximum delay between music [s]",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[0]": "If frequency is constant, delay will be fixed to maximum.",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[1]": "Otherwise, it's picked in [max/2 ; max] range.",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration": "Fade duration when switching biome [s]",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration.@Tooltip": "Do not fade if zero",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch": "Change music on biome switch",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch.@Tooltip": "Whether to switch music when entering a new biome",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration": "Fade out duration when switching biome [s]",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration.@Tooltip": "Do not fade out if zero",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration": "Fade in duration when switching biome [s]",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration.@Tooltip": "Do not fade in if zero",
 
     "text.autoconfig.music_control.option.general.event": "Event",
     "text.autoconfig.music_control.option.general.event.creativeEventFallback": "Creative music is played on fallback",
@@ -51,6 +55,8 @@
     "text.autoconfig.music_control.option.general.misc.volumeIncrement.@Tooltip": "When using keybindings",
 
     "text.autoconfig.music_control.option.cosmetics.display": "Display",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast": "Show music toast notification",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast.@Tooltip": "Display a toast notification when music starts playing",
     "text.autoconfig.music_control.option.cosmetics.display.atMusicStart": "Display text when music is played",
     "text.autoconfig.music_control.option.cosmetics.display.remainingSeconds": "Display remaining time until next music",
     "text.autoconfig.music_control.option.cosmetics.display.type": "Display type",

@@ -19,8 +19,12 @@
     "text.autoconfig.music_control.option.general.timer.maxDelay": "Délai maximum entre les musiques [s]",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[0]": "Si fréquence constante, le délai est fixé au maximum.",
     "text.autoconfig.music_control.option.general.timer.maxDelay.@Tooltip[1]": "Sinon, il varie entre [max/2 ; max].",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration": "Durée du fondu en changeant de biome [s]",
-    "text.autoconfig.music_control.option.general.timer.fadeDuration.@Tooltip": "Pas de fondu si zéro",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch": "Change music on biome switch",
+    "text.autoconfig.music_control.option.general.timer.changeMusicOnBiomeSwitch.@Tooltip": "Whether to switch music when entering a new biome",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration": "Durée du fondu en changeant de biome [s]",
+    "text.autoconfig.music_control.option.general.timer.fadeOutDuration.@Tooltip": "Pas de fondu si zéro",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration": "Fade in duration when switching biome [s]",
+    "text.autoconfig.music_control.option.general.timer.fadeInDuration.@Tooltip": "Do not fade in if zero",
 
     "text.autoconfig.music_control.option.general.event": "Evénement",
     "text.autoconfig.music_control.option.general.event.creativeEventFallback": "Retomber sur musique du créatif",
@@ -51,6 +55,8 @@
     "text.autoconfig.music_control.option.general.misc.volumeIncrement.@Tooltip": "Quand on utilise les touches de volume",
 
     "text.autoconfig.music_control.option.cosmetics.display": "Display",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast": "Show music toast notification",
+    "text.autoconfig.music_control.option.cosmetics.display.showMusicToast.@Tooltip": "Display a toast notification when music starts playing",
     "text.autoconfig.music_control.option.cosmetics.display.atMusicStart": "Afficher un texte quand une musique est jouée",
     "text.autoconfig.music_control.option.cosmetics.display.remainingSeconds": "Afficher le temps restant avant la prochaine musique",
     "text.autoconfig.music_control.option.cosmetics.display.type": "Type d'affichage",
@@ -77,6 +83,7 @@
     "music.category.default": "Par défaut",
     "music.category.disc": "Disques",
 
+    "music.format.category": "%s / %s",
     "music.format.dimension": "Dimension : %s",
     "music.format.biome": "Biome : %s",
     "music.format.disc": "Disque : %s",
@@ -100,6 +107,8 @@
     "gui.music_control.button.create": "En créer un nouveau",
     "gui.music_control.button.enable": "En activer un",
     "gui.music_control.button.save": "Sauvegarder",
+
+    "music_control.metadata.description": "Music Control - Built-in Resource Pack",
 
     "minecraft:music.creative": "Créatif",
     "minecraft:music.credits": "Crédits",
