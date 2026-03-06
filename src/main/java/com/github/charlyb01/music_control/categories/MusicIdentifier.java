@@ -170,8 +170,8 @@ public class MusicIdentifier {
         return soundEvent.value().id();
     }
 
-    public static boolean shouldNotChangeMusic(final Identifier eventId) {
-        if (eventId.equals(MusicControlClient.currentEvent)) return true;
+    public static boolean shouldChangeMusic(final Identifier eventId) {
+        if (eventId.equals(MusicControlClient.currentEvent)) return false;
 
         if (!eventId.equals(nextEventId)) {
             nextEventId = eventId;
@@ -180,11 +180,11 @@ public class MusicIdentifier {
 
         // If both events are empty, we want to keep the fallback/misc music
         if (nextEventList.isEmpty() && MusicControlClient.isCurrentEventEmpty)
-            return true;
+            return false;
 
         // If next event contains current music, we don't want to change it
         Music currentMusic = Music.getMusicFromIdentifier(MusicControlClient.currentMusic);
-        return nextEventList.contains(currentMusic);
+        return !nextEventList.contains(currentMusic);
     }
 
     public static boolean isDimension(final Identifier identifier) {

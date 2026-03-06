@@ -15,8 +15,13 @@ public class GeneralConfig implements ConfigData {
         @ConfigEntry.BoundedDiscrete(min = 1, max = 1800)
         public int maxDelay = 300;
         @ConfigEntry.Gui.Tooltip
+        public boolean changeMusicOnBiomeSwitch = true;
+        @ConfigEntry.Gui.Tooltip
         @ConfigEntry.BoundedDiscrete(min = 0, max = 10)
-        public int fadeDuration = 5;
+        public int fadeOutDuration = 5;
+        @ConfigEntry.Gui.Tooltip
+        @ConfigEntry.BoundedDiscrete(min = 0, max = 10)
+        public int fadeInDuration = 5;
     }
 
     @ConfigEntry.Gui.CollapsibleObject

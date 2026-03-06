@@ -33,6 +33,8 @@
   },
   "custom": {
     "modmenu": {
+      "badges": ["client"],
+      "description": "Take control of Minecraft music! Change music on the fly, loop tracks, skip or go back, adjust volume, manage music categories, and customize music timers and fades.",
       "links": {
         "modmenu.discord": "https://discord.gg/eNwkve8k7c"
       }

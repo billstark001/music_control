@@ -10,6 +10,8 @@ public class CosmeticsConfig implements ConfigData {
     public Display display = new Display();
 
     public static class Display {
+        @ConfigEntry.Gui.Tooltip
+        public boolean showMusicToast = true;
         public boolean atMusicStart = true;
         public boolean remainingSeconds = false;
         @ConfigEntry.Gui.Tooltip()
