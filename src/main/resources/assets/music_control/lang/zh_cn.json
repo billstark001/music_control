@@ -107,6 +107,15 @@
     "gui.music_control.button.create": "创建新的",
     "gui.music_control.button.enable": "启用一个",
     "gui.music_control.button.save": "保存",
+    "gui.music_control.button.migrate": "迁移",
+
+    "gui.music_control.migrate.title": "迁移音乐配置",
+    "gui.music_control.migrate.info": "存储版本：%s  →  当前版本：%s",
+    "gui.music_control.migrate.question": "您想如何迁移您的配置？",
+    "gui.music_control.migrate.inPlace": "就地迁移",
+    "gui.music_control.migrate.newPack": "新资源包",
+    "gui.music_control.migrate.cancel": "取消",
+    "gui.music_control.migrate.applyImmediately": "立即应用新资源包",
 
     "music_control.metadata.description": "音乐控制 - 内建资源包",
 

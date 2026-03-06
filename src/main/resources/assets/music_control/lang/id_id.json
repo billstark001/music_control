@@ -107,6 +107,15 @@
   "gui.music_control.button.create": "Buat baru",
   "gui.music_control.button.enable": "Aktifkan satu",
   "gui.music_control.button.save": "Simpan",
+  "gui.music_control.button.migrate": "Migrasikan",
+
+  "gui.music_control.migrate.title": "Migrasikan Konfigurasi Musik",
+  "gui.music_control.migrate.info": "Versi tersimpan: %s  →  Versi saat ini: %s",
+  "gui.music_control.migrate.question": "Bagaimana Anda ingin migrasikan konfigurasi Anda?",
+  "gui.music_control.migrate.inPlace": "Dalam Tempat",
+  "gui.music_control.migrate.newPack": "Paket Sumber Daya Baru",
+  "gui.music_control.migrate.cancel": "Batal",
+  "gui.music_control.migrate.applyImmediately": "Terapkan paket sumber daya baru segera",
 
   "music_control.metadata.description": "Music Control - Resource Pack bawaan",
 

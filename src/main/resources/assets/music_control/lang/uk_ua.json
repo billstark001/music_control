@@ -108,6 +108,15 @@
     "gui.music_control.button.create": "Створити новий",
     "gui.music_control.button.enable": "Увімкнути один",
     "gui.music_control.button.save": "Зберегти",
+    "gui.music_control.button.migrate": "Перенести",
+
+    "gui.music_control.migrate.title": "Перенести музичну конфігурацію",
+    "gui.music_control.migrate.info": "Збережена версія: %s  →  Поточна версія: %s",
+    "gui.music_control.migrate.question": "Як ви хочете перенести вашу конфігурацію?",
+    "gui.music_control.migrate.inPlace": "На місці",
+    "gui.music_control.migrate.newPack": "Новий пакет ресурсів",
+    "gui.music_control.migrate.cancel": "Скасувати",
+    "gui.music_control.migrate.applyImmediately": "Застосувати новий пакет ресурсів одразу",
 
     "music_control.metadata.description": "Music Control — Вбудований пакет ресурсів",
 

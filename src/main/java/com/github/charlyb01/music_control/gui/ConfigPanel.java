@@ -138,6 +138,16 @@ public class ConfigPanel extends WBox {
         });
         WBox buttonBox = new WBox(Axis.HORIZONTAL);
         buttonBox.setHorizontalAlignment(HorizontalAlignment.RIGHT);
+
+        if (ResourcePackUtils.needsMigration()) {
+            WButton migrateButton = new WButton(Text.translatable("gui.music_control.button.migrate"));
+            migrateButton.setOnClick(() -> {
+                Screen current = this.client.currentScreen;
+                this.client.setScreen(new MigrateScreen(current));
+            });
+            buttonBox.add(migrateButton, 100, 20);
+        }
+
         buttonBox.add(saveButton, 100, 20);
 
         this.musicConfigCard.add(

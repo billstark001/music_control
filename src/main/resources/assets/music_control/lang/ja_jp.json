@@ -107,6 +107,15 @@
     "gui.music_control.button.create": "新規作成",
     "gui.music_control.button.enable": "有効化",
     "gui.music_control.button.save": "保存",
+    "gui.music_control.button.migrate": "移行",
+
+    "gui.music_control.migrate.title": "音楽設定を移行",
+    "gui.music_control.migrate.info": "保存版：%s  →  現在のバージョン：%s",
+    "gui.music_control.migrate.question": "設定をどのように移行しますか？",
+    "gui.music_control.migrate.inPlace": "インプレイス",
+    "gui.music_control.migrate.newPack": "新しいリソースパック",
+    "gui.music_control.migrate.cancel": "キャンセル",
+    "gui.music_control.migrate.applyImmediately": "新しいリソースパックをすぐに適用",
 
     "music_control.metadata.description": "Music Control - ビルトイン・リソースパック",
 

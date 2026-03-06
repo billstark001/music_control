@@ -5,26 +5,37 @@ import com.github.charlyb01.music_control.client.MusicControlClient;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.jspecify.annotations.NonNull;
 
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import static com.github.charlyb01.music_control.categories.Music.EVENTS_OF_EVENT;
 import static com.github.charlyb01.music_control.categories.Music.MUSIC_BY_EVENT;
+import static com.github.charlyb01.music_control.categories.Music.BLACK_LISTED_EVENTS;
 import static com.github.charlyb01.music_control.categories.MusicCategories.NAMESPACES;
 
 public class ResourcePackUtils {
@@ -46,6 +57,207 @@ public class ResourcePackUtils {
                 name -> name.startsWith(RESOURCEPACK_PROFILE_NAME));
     }
 
+    /**
+     * Returns true if the loaded resource pack has a music_control_meta.json
+     * whose minecraft_version differs from the current game version.
+     */
+    public static boolean needsMigration() {
+        String storedVersion = readMetadataVersion();
+        if (storedVersion == null) return false;
+        return !storedVersion.equals(SharedConstants.getGameVersion().name());
+    }
+
+    /**
+     * Reads the minecraft_version field from the resource pack's metadata file.
+     * Returns null if the file does not exist or cannot be read.
+     */
+    public static String readMetadataVersion() {
+        Path existingPath = getExistingMetadataPath();
+        if (existingPath == null) return null;
+        try (FileReader reader = new FileReader(existingPath.toFile())) {
+            JsonObject meta = GSON.fromJson(reader, JsonObject.class);
+            if (meta == null || !meta.has("minecraft_version")) return null;
+            return meta.get("minecraft_version").getAsString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Migrates the user's music configuration from the stored metadata to the
+     * current Minecraft version.
+     *
+     * @param inPlace         when {@code true} the existing resource pack is overwritten;
+     *                        when {@code false} a brand-new resource pack is created.
+     * @param applyImmediately when {@code false} and {@code inPlace} is false, the new
+     *                        pack is created but NOT enabled (the old one stays active).
+     * @param storedVersion   the version string stored in the metadata (used to name the
+     *                        new resource pack folder when {@code inPlace} is false).
+     */
+    public static void migrateConfig(boolean inPlace, boolean applyImmediately, String storedVersion) {
+        // Remember the source pack path so we can read metadata from it
+        Path sourcePack = RESOURCEPACK_PATH;
+        if (sourcePack == null) {
+            setPaths();
+            sourcePack = RESOURCEPACK_PATH;
+        }
+        if (sourcePack == null) return;
+
+        // Read the stored changes from metadata
+        Path metaFile = sourcePack.resolve("music_control_meta.json");
+        if (!Files.exists(metaFile)) return;
+
+        JsonObject storedMeta;
+        try (FileReader reader = new FileReader(metaFile.toFile())) {
+            storedMeta = GSON.fromJson(reader, JsonObject.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+        if (storedMeta == null || !storedMeta.has("changes")) return;
+        JsonObject changesObj = storedMeta.getAsJsonObject("changes");
+
+        // Build a map of the user's changes: eventId -> {remove, add}
+        TreeMap<String, TreeSet<String>> toRemove = new TreeMap<>();
+        TreeMap<String, TreeSet<String>> toAdd = new TreeMap<>();
+        for (Map.Entry<String, JsonElement> entry : changesObj.entrySet()) {
+            String eventId = entry.getKey();
+            JsonObject change = entry.getValue().getAsJsonObject();
+            TreeSet<String> removeSet = new TreeSet<>();
+            TreeSet<String> addSet = new TreeSet<>();
+            if (change.has("remove")) {
+                for (JsonElement el : change.getAsJsonArray("remove")) {
+                    removeSet.add(el.getAsString());
+                }
+            }
+            if (change.has("add")) {
+                for (JsonElement el : change.getAsJsonArray("add")) {
+                    addSet.add(el.getAsString());
+                }
+            }
+            toRemove.put(eventId, removeSet);
+            toAdd.put(eventId, addSet);
+        }
+
+        // If creating a new pack, set up a fresh resource pack first
+        if (!inPlace) {
+            createMigrationResourcePack(storedVersion, applyImmediately);
+            // createMigrationResourcePack sets RESOURCEPACK_PATH / ASSETS_PATH and WAS_CREATED
+        }
+
+        // Load vanilla sounds for each namespace and apply the user's changes
+        for (String namespace : NAMESPACES) {
+            TreeMap<String, TreeSet<String>> vanillaSounds = loadVanillaSounds(namespace);
+
+            // Collect all event IDs that are relevant for this namespace
+            TreeSet<String> allEventIds = new TreeSet<>(vanillaSounds.keySet());
+            // Also include events in toAdd/toRemove that belong to this namespace
+            for (String eventId : toRemove.keySet()) {
+                if (eventId.startsWith(namespace + ":")) allEventIds.add(eventId);
+            }
+            for (String eventId : toAdd.keySet()) {
+                if (eventId.startsWith(namespace + ":")) allEventIds.add(eventId);
+            }
+
+            TreeMap<String, JsonObject> nsMap = new TreeMap<>();
+
+            for (String eventId : allEventIds) {
+                // Parse namespace:path
+                int colonIdx = eventId.indexOf(':');
+                if (colonIdx < 0) continue;
+                String eventPath = eventId.substring(colonIdx + 1);
+
+                TreeSet<String> soundSet = new TreeSet<>(
+                        vanillaSounds.getOrDefault(eventId, new TreeSet<>()));
+
+                // Apply removes (only vanilla sounds can be removed)
+                TreeSet<String> removeSet = toRemove.getOrDefault(eventId, new TreeSet<>());
+                soundSet.removeAll(removeSet);
+
+                // Apply adds (new sounds not in vanilla)
+                TreeSet<String> addSet = toAdd.getOrDefault(eventId, new TreeSet<>());
+                soundSet.addAll(addSet);
+
+                // If the user deliberately removed all sounds from a vanilla event,
+                // soundSet will be empty here – we still write the entry so the
+                // replace:true directive suppresses vanilla sounds for that event.
+
+                JsonArray sounds = new JsonArray();
+                for (String name : soundSet) {
+                    JsonObject fileSound = new JsonObject();
+                    fileSound.addProperty("name", name);
+                    fileSound.addProperty("stream", true);
+                    sounds.add(fileSound);
+                }
+
+                JsonObject soundEvent = new JsonObject();
+                soundEvent.addProperty("category", "music");
+                soundEvent.addProperty("replace", true);
+                soundEvent.add("sounds", sounds);
+
+                nsMap.put(eventPath, soundEvent);
+            }
+
+            // Write sounds.json
+            Path soundPath = getSoundPath(namespace);
+            if (soundPath == null) continue;
+            JsonObject root = new JsonObject();
+            for (Map.Entry<String, JsonObject> e : nsMap.entrySet()) {
+                root.add(e.getKey(), e.getValue());
+            }
+            try (PrintWriter out = new PrintWriter(new FileWriter(soundPath.toFile()))) {
+                out.write(GSON.toJson(root));
+                out.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Update metadata with new version and same changes (recomputed via writeMetadata)
+        // We need MUSIC_BY_EVENT to be consistent, but since this is a migration outside the
+        // normal edit flow we simply rewrite metadata with the new game version + same changes.
+        writeMigratedMetadata(changesObj);
+    }
+
+    /**
+     * Writes a metadata file keeping the same user changes but updating the stored
+     * minecraft_version to the current game version.
+     */
+    private static void writeMigratedMetadata(JsonObject changesObj) {
+        JsonObject meta = new JsonObject();
+        meta.addProperty("minecraft_version", SharedConstants.getGameVersion().name());
+        meta.add("changes", changesObj);
+
+        Path metaPath = getMetadataPath();
+        if (metaPath == null) return;
+        try (PrintWriter out = new PrintWriter(new FileWriter(metaPath.toFile()))) {
+            out.write(GSON.toJson(meta));
+            out.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Returns the path to an existing music_control_meta.json in the current
+     * resource pack, or null if it does not exist.
+     */
+    private static Path getExistingMetadataPath() {
+        Path rp = RESOURCEPACK_PATH;
+        if (rp == null) {
+            // Try to resolve from enabled packs without side effects
+            Optional<String> selected = MinecraftClient.getInstance()
+                    .getResourcePackManager().getEnabledIds().stream()
+                    .filter(n -> n.startsWith(RESOURCEPACK_PROFILE_NAME)).findFirst();
+            if (selected.isEmpty()) return null;
+            rp = MinecraftClient.getInstance().getResourcePackDir()
+                    .resolve(selected.get().substring(5));
+        }
+        Path filePath = rp.resolve("music_control_meta.json");
+        return Files.exists(filePath) ? filePath : null;
+    }
+
     public static void writeConfig() {
         if (WAS_CREATED) {
             WAS_CREATED = false;
@@ -53,33 +265,39 @@ public class ResourcePackUtils {
             setPaths();
         }
 
-        HashMap<String, FileWriter> fileWriters = new HashMap<>();
-        HashMap<String, JsonObject> jsonObjects = new HashMap<>();
+        // Build sorted sound event map: namespace -> sorted event path -> JsonObject
+        Map<String, TreeMap<String, JsonObject>> sortedByNamespace = new HashMap<>();
         for (String namespace : NAMESPACES) {
-            jsonObjects.put(namespace, new JsonObject());
-            try {
-                fileWriters.put(namespace, new FileWriter(ResourcePackUtils.getSoundPath(namespace).toFile()));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            sortedByNamespace.put(namespace, new TreeMap<>());
         }
 
         MUSIC_BY_EVENT.forEach((Identifier eventId, HashSet<Music> musics) -> {
-            JsonArray sounds = new JsonArray();
+            // Sort sound names for deterministic output
+            List<String> soundNames = new ArrayList<>();
             for (Music music : musics) {
-                JsonObject fileSound = new JsonObject();
-                fileSound.addProperty("name", music.getIdentifier().toString());
-                fileSound.addProperty("stream", true);
+                soundNames.add(music.getIdentifier().toString());
+            }
+            soundNames.sort(String::compareTo);
 
+            JsonArray sounds = new JsonArray();
+            for (String name : soundNames) {
+                JsonObject fileSound = new JsonObject();
+                fileSound.addProperty("name", name);
+                fileSound.addProperty("stream", true);
                 sounds.add(fileSound);
             }
+
             HashSet<Identifier> events = EVENTS_OF_EVENT.get(eventId);
             if (events != null) {
-                for (Identifier otherEventId : events) {
+                List<String> eventNames = new ArrayList<>();
+                for (Identifier otherId : events) {
+                    eventNames.add(otherId.getPath());
+                }
+                eventNames.sort(String::compareTo);
+                for (String name : eventNames) {
                     JsonObject eventSound = new JsonObject();
-                    eventSound.addProperty("name", otherEventId.getPath());
+                    eventSound.addProperty("name", name);
                     eventSound.addProperty("type", "event");
-
                     sounds.add(eventSound);
                 }
             }
@@ -89,17 +307,185 @@ public class ResourcePackUtils {
             soundEvent.addProperty("replace", true);
             soundEvent.add("sounds", sounds);
 
-            jsonObjects.get(eventId.getNamespace()).add(eventId.getPath(), soundEvent);
+            TreeMap<String, JsonObject> nsMap = sortedByNamespace.get(eventId.getNamespace());
+            if (nsMap != null) {
+                nsMap.put(eventId.getPath(), soundEvent);
+            }
         });
 
-        fileWriters.forEach((String namespace, FileWriter fileWriter) -> {
-            try (PrintWriter out = new PrintWriter(fileWriter)) {
-                out.write(GSON.toJson(jsonObjects.get(namespace)));
+        // Write sounds.json for each namespace (keys sorted via TreeMap)
+        for (String namespace : NAMESPACES) {
+            TreeMap<String, JsonObject> nsMap = sortedByNamespace.get(namespace);
+            if (nsMap == null) continue;
+
+            JsonObject root = new JsonObject();
+            for (Map.Entry<String, JsonObject> entry : nsMap.entrySet()) {
+                root.add(entry.getKey(), entry.getValue());
+            }
+
+            Path soundPath = getSoundPath(namespace);
+            if (soundPath == null) continue;
+            try (PrintWriter out = new PrintWriter(new FileWriter(soundPath.toFile()))) {
+                out.write(GSON.toJson(root));
                 out.flush();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+        writeMetadata();
+    }
+
+    /**
+     * Writes incremental metadata compared to the vanilla Minecraft sound list.
+     * The metadata records only the events that differ from vanilla, listing
+     * which sounds were added and which were removed.
+     * See META_FORMAT.md for the full format specification.
+     */
+    private static void writeMetadata() {
+        // Build current state: full event identifier -> sorted set of sound names
+        TreeMap<String, TreeSet<String>> currentState = new TreeMap<>();
+        MUSIC_BY_EVENT.forEach((Identifier eventId, HashSet<Music> musics) -> {
+            TreeSet<String> sounds = new TreeSet<>();
+            for (Music music : musics) {
+                sounds.add(music.getIdentifier().toString());
+            }
+            currentState.put(eventId.toString(), sounds);
         });
+
+        // Load vanilla sounds for each namespace to compute the diff
+        TreeMap<String, TreeSet<String>> vanillaState = new TreeMap<>();
+        for (String namespace : NAMESPACES) {
+            vanillaState.putAll(loadVanillaSounds(namespace));
+        }
+
+        // Compute changes: only include events that differ from vanilla
+        TreeMap<String, JsonObject> changes = new TreeMap<>();
+
+        for (Map.Entry<String, TreeSet<String>> entry : currentState.entrySet()) {
+            String eventId = entry.getKey();
+            TreeSet<String> current = entry.getValue();
+            TreeSet<String> vanilla = vanillaState.getOrDefault(eventId, new TreeSet<>());
+
+            TreeSet<String> added = new TreeSet<>(current);
+            added.removeAll(vanilla);
+
+            TreeSet<String> removed = new TreeSet<>(vanilla);
+            removed.removeAll(current);
+
+            if (!added.isEmpty() || !removed.isEmpty()) {
+                JsonObject change = new JsonObject();
+                if (!removed.isEmpty()) {
+                    JsonArray removeArray = new JsonArray();
+                    removed.forEach(removeArray::add);
+                    change.add("remove", removeArray);
+                }
+                if (!added.isEmpty()) {
+                    JsonArray addArray = new JsonArray();
+                    added.forEach(addArray::add);
+                    change.add("add", addArray);
+                }
+                changes.put(eventId, change);
+            }
+        }
+
+        // Record events entirely removed by the user (present in vanilla but absent in current)
+        for (Map.Entry<String, TreeSet<String>> entry : vanillaState.entrySet()) {
+            String eventId = entry.getKey();
+            if (!currentState.containsKey(eventId)) {
+                TreeSet<String> vanilla = entry.getValue();
+                if (!vanilla.isEmpty()) {
+                    JsonObject change = new JsonObject();
+                    JsonArray removeArray = new JsonArray();
+                    vanilla.forEach(removeArray::add);
+                    change.add("remove", removeArray);
+                    changes.put(eventId, change);
+                }
+            }
+        }
+
+        // Build metadata document
+        JsonObject meta = new JsonObject();
+        meta.addProperty("minecraft_version", SharedConstants.getGameVersion().name());
+        JsonObject changesObj = new JsonObject();
+        for (Map.Entry<String, JsonObject> entry : changes.entrySet()) {
+            changesObj.add(entry.getKey(), entry.getValue());
+        }
+        meta.add("changes", changesObj);
+
+        Path metaPath = getMetadataPath();
+        if (metaPath == null) return;
+        try (PrintWriter out = new PrintWriter(new FileWriter(metaPath.toFile()))) {
+            out.write(GSON.toJson(meta));
+            out.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Loads the vanilla (lowest-priority) sounds.json for a given namespace
+     * from the resource manager. The lowest-priority resource is vanilla Minecraft.
+     * Returns a map: full event identifier string -> sorted set of sound names.
+     */
+    private static TreeMap<String, TreeSet<String>> loadVanillaSounds(String namespace) {
+        TreeMap<String, TreeSet<String>> result = new TreeMap<>();
+        try {
+            Identifier soundsId = Identifier.of(namespace, "sounds.json");
+            List<Resource> resources = MinecraftClient.getInstance()
+                    .getResourceManager().getAllResources(soundsId);
+            if (resources.isEmpty()) return result;
+
+            // getAllResources returns from lowest to highest priority;
+            // the first entry is vanilla (base Minecraft pack).
+            // Skip our own pack if it appears first.
+            String ourPackName = RESOURCEPACK_PATH != null
+                    ? RESOURCEPACK_PATH.getFileName().toString() : null;
+            Resource vanillaResource = null;
+            for (Resource resource : resources) {
+                if (ourPackName == null || !resource.getPack().getId().contains(ourPackName)) {
+                    vanillaResource = resource;
+                    break;
+                }
+            }
+            if (vanillaResource == null) return result;
+
+            try (InputStreamReader reader = new InputStreamReader(vanillaResource.getInputStream())) {
+                JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                if (json == null) return result;
+                for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                    if (!entry.getKey().contains("music")) continue;
+                    if (BLACK_LISTED_EVENTS.contains(Identifier.ofVanilla(entry.getKey()))) continue;
+                    String eventId = namespace + ":" + entry.getKey();
+                    TreeSet<String> sounds = getSoundStrings(namespace, entry);
+                    result.put(eventId, sounds);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    private static @NonNull TreeSet<String> getSoundStrings(String namespace, Map.Entry<String, JsonElement> entry) {
+        JsonObject eventObj = entry.getValue().getAsJsonObject();
+        TreeSet<String> sounds = new TreeSet<>();
+        if (eventObj.has("sounds")) {
+            for (JsonElement sound : eventObj.getAsJsonArray("sounds")) {
+                if (sound.isJsonObject()) {
+                    JsonObject soundObj = sound.getAsJsonObject();
+                    if (soundObj.has("name")) {
+                        String name = soundObj.get("name").getAsString();
+                        // vanilla sounds.json names are paths without namespace prefix
+                        sounds.add(name.contains(":") ? name : namespace + ":" + name);
+                    }
+                } else if (sound.isJsonPrimitive()) {
+                    String name = sound.getAsString();
+                    sounds.add(name.contains(":") ? name : namespace + ":" + name);
+                }
+            }
+        }
+        return sounds;
     }
 
     public static void createResourcePack() {
@@ -135,6 +521,76 @@ public class ResourcePackUtils {
         WAS_CREATED = true;
         MinecraftClient.getInstance().getResourcePackManager().scanPacks();
         MinecraftClient.getInstance().getResourcePackManager().enable(resourcePackProfileName);
+    }
+
+    /**
+     * Creates a new resource pack named after the migration versions
+     * (e.g. {@code music_control_1.21.10_to_1.21.11}).
+     *
+     * @param fromVersion      the stored (old) Minecraft version.
+     * @param applyImmediately if {@code true} the new pack is enabled immediately;
+     *                         otherwise it is only created on disk.
+     */
+    private static void createMigrationResourcePack(String fromVersion, boolean applyImmediately) {
+        String toVersion = SharedConstants.getGameVersion().name();
+        String resourcePackProfileName = findNextAvailableMigrationPath(fromVersion, toVersion);
+
+        try {
+            Files.createDirectories(RESOURCEPACK_PATH);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        createMetaFile();
+        createIcon();
+
+        try {
+            Files.createDirectories(ASSETS_PATH);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        for (String namespace : NAMESPACES) {
+            final Path namespacePath = ASSETS_PATH.resolve(namespace);
+            try {
+                Files.createDirectories(namespacePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+
+        MinecraftClient.getInstance().getResourcePackManager().scanPacks();
+        if (applyImmediately) {
+            WAS_CREATED = true;
+            MinecraftClient.getInstance().getResourcePackManager().enable(resourcePackProfileName);
+        }
+    }
+
+    /**
+     * Finds the next available folder name for a migration pack,
+     * e.g. {@code music_control_1.21.10_to_1.21.11} or
+     *      {@code music_control_1.21.10_to_1.21.11_2}.
+     */
+    private static String findNextAvailableMigrationPath(String fromVersion, String toVersion) {
+        // Replace dots with underscores so the folder name is filesystem-safe on all platforms
+        String safe_from = fromVersion.replace('.', '_');
+        String safe_to   = toVersion.replace('.', '_');
+        String base = MusicControlClient.MOD_ID + "_" + safe_from + "_to_" + safe_to;
+
+        final Path resourcePackDir = MinecraftClient.getInstance().getResourcePackDir();
+        RESOURCEPACK_PATH = resourcePackDir.resolve(base);
+        String resourcePackName = base;
+        int i = 1;
+        while (Files.exists(RESOURCEPACK_PATH)) {
+            resourcePackName = base + "_" + (++i);
+            RESOURCEPACK_PATH = resourcePackDir.resolve(resourcePackName);
+        }
+
+        ASSETS_PATH = RESOURCEPACK_PATH.resolve("assets");
+        return "file/" + resourcePackName;
     }
 
     private static String findNextAvailablePath() {
@@ -232,6 +688,20 @@ public class ResourcePackUtils {
             e.printStackTrace();
         }
 
+        return null;
+    }
+
+    private static Path getMetadataPath() {
+        if (RESOURCEPACK_PATH == null) return null;
+        Path filePath = RESOURCEPACK_PATH.resolve("music_control_meta.json");
+        if (Files.exists(filePath)) {
+            return filePath;
+        }
+        try {
+            return Files.createFile(filePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 }

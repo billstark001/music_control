@@ -107,6 +107,15 @@
     "gui.music_control.button.create": "En créer un nouveau",
     "gui.music_control.button.enable": "En activer un",
     "gui.music_control.button.save": "Sauvegarder",
+    "gui.music_control.button.migrate": "Migrer",
+
+    "gui.music_control.migrate.title": "Migrer la configuration de la musique",
+    "gui.music_control.migrate.info": "Version stockée : %s  →  Version actuelle : %s",
+    "gui.music_control.migrate.question": "Comment souhaitez-vous migrer votre configuration ?",
+    "gui.music_control.migrate.inPlace": "Sur place",
+    "gui.music_control.migrate.newPack": "Nouveau pack de ressources",
+    "gui.music_control.migrate.cancel": "Annuler",
+    "gui.music_control.migrate.applyImmediately": "Appliquer le nouveau pack de ressources immédiatement",
 
     "music_control.metadata.description": "Music Control - Built-in Resource Pack",
 
