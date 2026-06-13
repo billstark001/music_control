@@ -7,6 +7,7 @@ import com.github.charlyb01.music_control.gui.MusicControlGUI;
 import com.github.charlyb01.music_control.gui.MusicControlScreen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.sound.SoundCategory;
@@ -140,24 +141,24 @@ public class MusicKeyBinding {
             }
 
             while (volumeUp.wasPressed()) {
-                int volume = Math.round(client.options.getSoundVolume(SoundCategory.MUSIC) * 100.f);
-                volume = Math.min(volume + ModConfig.get().general.misc.volumeIncrement, 100);
-                ((GameOptionsAccess) client.options).music_control$setSoundCategoryVolume(SoundCategory.MUSIC, volume / 100.f);
-                client.options.write();
-                Utils.print(client, Text.translatable("music.volume", volume));
+                adjustVolume(client, ModConfig.get().general.misc.volumeIncrement);
             }
 
             while (volumeDown.wasPressed()) {
-                int volume = Math.round(client.options.getSoundVolume(SoundCategory.MUSIC) * 100.f);
-                volume = Math.max(volume - ModConfig.get().general.misc.volumeIncrement, 0);
-                ((GameOptionsAccess) client.options).music_control$setSoundCategoryVolume(SoundCategory.MUSIC, volume / 100.f);
-                client.options.write();
-                Utils.print(client, Text.translatable("music.volume", volume));
+                adjustVolume(client, -ModConfig.get().general.misc.volumeIncrement);
             }
 
             while (openMenu.wasPressed()) {
                 client.setScreen(new MusicControlScreen(new MusicControlGUI(client)));
             }
         });
+    }
+
+    private static void adjustVolume(MinecraftClient client, int incrementPercent) {
+        double volume = client.options.getSoundVolume(SoundCategory.MUSIC);
+        volume = Math.max(0.0, Math.min(1.0, volume + incrementPercent / 100.0));
+        ((GameOptionsAccess) client.options).music_control$setSoundCategoryVolume(SoundCategory.MUSIC, volume);
+        client.options.write();
+        Utils.print(client, Text.translatable("music.volume", Math.round(volume * 100.0)));
     }
 }
