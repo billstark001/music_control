@@ -12,15 +12,14 @@ import io.github.cottonmc.cotton.gui.widget.WText;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.pack.PackScreen;
-import net.minecraft.resource.ResourcePackManager;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.repository.PackRepository;
 
 public class ConfigPanel extends WBox {
     protected static boolean isEvent = true;
@@ -31,9 +30,9 @@ public class ConfigPanel extends WBox {
     protected WBox resourcePackCard = new WBox(Axis.VERTICAL);
     protected WBox musicConfigCard = new WBox(Axis.VERTICAL);
     protected Screen previousScreen = null;
-    protected final MinecraftClient client;
+    protected final Minecraft client;
 
-    public ConfigPanel(final MinecraftClient client) {
+    public ConfigPanel(final Minecraft client) {
         super(Axis.VERTICAL);
         this.setInsets(Insets.ROOT_PANEL);
         this.setHorizontalAlignment(HorizontalAlignment.LEFT);
@@ -59,29 +58,29 @@ public class ConfigPanel extends WBox {
         }
     }
 
-    private void backToMusicScreen(ResourcePackManager manager) {
-        this.client.options.refreshResourcePacks(manager);
+    private void backToMusicScreen(PackRepository manager) {
+        this.client.options.updateResourcePacks(manager);
         this.client.setScreen(this.previousScreen);
         this.previousScreen = null;
         this.updateLayout();
     }
 
     private void setupResourcePackPanel() {
-        WText text = new WText(Text.translatable("gui.music_control.label.resourcePack"));
+        WText text = new WText(Component.translatable("gui.music_control.label.resourcePack"));
         text.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
-        WButton enableButton = new WButton(Text.translatable("gui.music_control.button.enable"));
+        WButton enableButton = new WButton(Component.translatable("gui.music_control.button.enable"));
         enableButton.setEnabled(ResourcePackUtils.exists());
         enableButton.setOnClick(() -> {
-            this.previousScreen = this.client.currentScreen;
-            this.client.setScreen(new PackScreen(
-                    this.client.getResourcePackManager(),
+            this.previousScreen = this.client.screen;
+            this.client.setScreen(new PackSelectionScreen(
+                    this.client.getResourcePackRepository(),
                     this::backToMusicScreen,
-                    this.client.getResourcePackDir(),
-                    Text.translatable("resourcePack.title")));
+                    this.client.getResourcePackDirectory(),
+                    Component.translatable("resourcePack.title")));
         });
 
-        WButton createButton = new WButton(Text.translatable("gui.music_control.button.create"));
+        WButton createButton = new WButton(Component.translatable("gui.music_control.button.create"));
         createButton.setOnClick(() -> {
             ResourcePackUtils.createResourcePack();
             this.updateLayout();
@@ -131,18 +130,18 @@ public class ConfigPanel extends WBox {
 
         listsBox.add(new SoundListPanel(onSoundClicked, onSoundClicked, onToggle, innerWidth / 2, isEvent));
 
-        WButton saveButton = new WButton(Text.translatable("gui.music_control.button.save"));
+        WButton saveButton = new WButton(Component.translatable("gui.music_control.button.save"));
         saveButton.setOnClick(() -> {
             ResourcePackUtils.writeConfig();
-            this.client.reloadResources();
+            this.client.reloadResourcePacks();
         });
         WBox buttonBox = new WBox(Axis.HORIZONTAL);
         buttonBox.setHorizontalAlignment(HorizontalAlignment.RIGHT);
 
         if (ResourcePackUtils.needsMigration()) {
-            WButton migrateButton = new WButton(Text.translatable("gui.music_control.button.migrate"));
+            WButton migrateButton = new WButton(Component.translatable("gui.music_control.button.migrate"));
             migrateButton.setOnClick(() -> {
-                Screen current = this.client.currentScreen;
+                Screen current = this.client.screen;
                 this.client.setScreen(new MigrateScreen(current));
             });
             buttonBox.add(migrateButton, 100, 20);

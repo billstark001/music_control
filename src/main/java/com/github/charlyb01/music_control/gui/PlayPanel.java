@@ -10,14 +10,13 @@ import io.github.cottonmc.cotton.gui.widget.WLabel;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 public class PlayPanel extends WBox {
-    protected final static Text NONE_TEXT = Text.translatable("music.none");
+    protected final static Component NONE_TEXT = Component.translatable("music.none");
     protected final static String SELECTED_KEY = "gui.music_control.label.selected";
 
     protected Button hoveredButton;
@@ -26,18 +25,18 @@ public class PlayPanel extends WBox {
         super(Axis.VERTICAL);
         this.setInsets(Insets.ROOT_PANEL);
 
-        WLabel selected = new WLabel(Text.translatable(SELECTED_KEY, NONE_TEXT));
+        WLabel selected = new WLabel(Component.translatable(SELECTED_KEY, NONE_TEXT));
         selected.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
         BiConsumer<Identifier, Button> onSoundClicked = (Identifier identifier, Button button) -> {
             if (identifier.equals(MusicControlClient.musicSelected)) {
                 MusicControlClient.nextMusic = false;
                 MusicControlClient.musicSelected = null;
-                selected.setText(Text.translatable(SELECTED_KEY, NONE_TEXT));
+                selected.setText(Component.translatable(SELECTED_KEY, NONE_TEXT));
             } else {
                 MusicControlClient.nextMusic = true;
                 MusicControlClient.musicSelected = identifier;
-                selected.setText(Text.translatable(SELECTED_KEY, Music.getTranslatedText(identifier)));
+                selected.setText(Component.translatable(SELECTED_KEY, Music.getTranslatedText(identifier)));
             }
 
             if (this.hoveredButton != null) {

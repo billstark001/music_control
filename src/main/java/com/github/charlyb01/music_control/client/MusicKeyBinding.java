@@ -2,31 +2,31 @@ package com.github.charlyb01.music_control.client;
 
 import com.github.charlyb01.music_control.Utils;
 import com.github.charlyb01.music_control.imixin.GameOptionsAccess;
+import com.mojang.blaze3d.platform.InputConstants;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.gui.MusicControlGUI;
 import com.github.charlyb01.music_control.gui.MusicControlScreen;
+import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.text.Text;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
 import org.lwjgl.glfw.GLFW;
 
 public class MusicKeyBinding {
-    private static final KeyBinding.Category mainCategory = KeyBinding.Category.create(MusicControlClient.id("main"));
+    private static final KeyMapping.Category mainCategory = KeyMapping.Category.register(MusicControlClient.id("main"));
 
-    private static KeyBinding previousMusic;
-    private static KeyBinding nextMusic;
-    private static KeyBinding pauseResume;
-    private static KeyBinding loopMusic;
-    private static KeyBinding previousCategory;
-    private static KeyBinding nextCategory;
-    private static KeyBinding printMusic;
-    private static KeyBinding volumeUp;
-    private static KeyBinding volumeDown;
-    private static KeyBinding openMenu;
+    private static KeyMapping previousMusic;
+    private static KeyMapping nextMusic;
+    private static KeyMapping pauseResume;
+    private static KeyMapping loopMusic;
+    private static KeyMapping previousCategory;
+    private static KeyMapping nextCategory;
+    private static KeyMapping printMusic;
+    private static KeyMapping volumeUp;
+    private static KeyMapping volumeDown;
+    private static KeyMapping openMenu;
 
     public static void register() {
         registerKeys();
@@ -34,72 +34,72 @@ public class MusicKeyBinding {
     }
 
     private static void registerKeys() {
-        previousMusic = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        previousMusic = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.previousMusic",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_LEFT,
                 mainCategory
         ));
 
-        nextMusic = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        nextMusic = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.nextMusic",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT,
                 mainCategory
         ));
 
-        pauseResume = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        pauseResume = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.pause",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_SHIFT,
                 mainCategory
         ));
 
-        loopMusic = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        loopMusic = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.loop",
-                InputUtil.Type.KEYSYM,
-                InputUtil.UNKNOWN_KEY.getCode(),
+                InputConstants.Type.KEYSYM,
+                InputConstants.UNKNOWN.getValue(),
                 mainCategory
         ));
 
-        previousCategory = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        previousCategory = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.previousCategory",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_PAGE_UP,
                 mainCategory
         ));
 
-        nextCategory = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        nextCategory = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.nextCategory",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_PAGE_DOWN,
                 mainCategory
         ));
 
-        printMusic = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        printMusic = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.print",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_CONTROL,
                 mainCategory
         ));
 
-        volumeUp = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        volumeUp = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.volumeUp",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_UP,
                 mainCategory
         ));
 
-        volumeDown = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        volumeDown = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.volumeDown",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_DOWN,
                 mainCategory
         ));
 
-        openMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        openMenu = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.music_control.openMenu",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_M,
                 mainCategory
         ));
@@ -107,58 +107,58 @@ public class MusicKeyBinding {
 
     private static void registerEvents() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (previousMusic.wasPressed()) {
+            while (previousMusic.consumeClick()) {
                 MusicControlClient.previousMusic = true;
             }
 
-            while (nextMusic.wasPressed()) {
+            while (nextMusic.consumeClick()) {
                 MusicControlClient.nextMusic = true;
             }
 
-            while (pauseResume.wasPressed()) {
+            while (pauseResume.consumeClick()) {
                 MusicControlClient.pauseResume = true;
             }
 
-            while (loopMusic.wasPressed()) {
+            while (loopMusic.consumeClick()) {
                 MusicControlClient.loopMusic = !MusicControlClient.loopMusic;
                 if (MusicControlClient.loopMusic) {
-                    Utils.print(client, Text.translatable("music.loop.on"));
+                    Utils.print(client, Component.translatable("music.loop.on"));
                 } else {
-                    Utils.print(client, Text.translatable("music.loop.off"));
+                    Utils.print(client, Component.translatable("music.loop.off"));
                 }
             }
 
-            while (previousCategory.wasPressed()) {
+            while (previousCategory.consumeClick()) {
                 MusicControlClient.previousCategory = true;
             }
 
-            while (nextCategory.wasPressed()) {
+            while (nextCategory.consumeClick()) {
                 MusicControlClient.nextCategory = true;
             }
 
-            while (printMusic.wasPressed()) {
+            while (printMusic.consumeClick()) {
                 MusicControlClient.printMusic = true;
             }
 
-            while (volumeUp.wasPressed()) {
+            while (volumeUp.consumeClick()) {
                 adjustVolume(client, ModConfig.get().general.misc.volumeIncrement);
             }
 
-            while (volumeDown.wasPressed()) {
+            while (volumeDown.consumeClick()) {
                 adjustVolume(client, -ModConfig.get().general.misc.volumeIncrement);
             }
 
-            while (openMenu.wasPressed()) {
+            while (openMenu.consumeClick()) {
                 client.setScreen(new MusicControlScreen(new MusicControlGUI(client)));
             }
         });
     }
 
-    private static void adjustVolume(MinecraftClient client, int incrementPercent) {
-        double volume = client.options.getSoundVolume(SoundCategory.MUSIC);
-        volume = Math.max(0.0, Math.min(1.0, volume + incrementPercent / 100.0));
-        ((GameOptionsAccess) client.options).music_control$setSoundCategoryVolume(SoundCategory.MUSIC, volume);
-        client.options.write();
-        Utils.print(client, Text.translatable("music.volume", Math.round(volume * 100.0)));
+    private static void adjustVolume(Minecraft client, int incrementPercent) {
+        double volume = client.options.getSoundSourceVolume(SoundSource.MUSIC);
+        volume = Math.clamp(volume + incrementPercent / 100.0, 0.0, 1.0);
+        ((GameOptionsAccess) client.options).music_control$setSoundCategoryVolume(SoundSource.MUSIC, volume);
+        client.options.save();
+        Utils.print(client, Component.translatable("music.volume", Math.round(volume * 100.0)));
     }
 }

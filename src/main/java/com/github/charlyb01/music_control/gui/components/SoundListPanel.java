@@ -6,12 +6,11 @@ import io.github.cottonmc.cotton.gui.widget.WBox;
 import io.github.cottonmc.cotton.gui.widget.WCardPanel;
 import io.github.cottonmc.cotton.gui.widget.WToggleButton;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-
 import java.util.ArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import static com.github.charlyb01.music_control.categories.Music.*;
 
@@ -37,7 +36,7 @@ public class SoundListPanel extends WBox {
             listPanel.setSelectedCard(eventListPanel);
         }
 
-        WToggleButton toggleButton = new WToggleButton(Text.translatable("gui.music_control.toggle.musicEvent"));
+        WToggleButton toggleButton = new WToggleButton(Component.translatable("gui.music_control.toggle.musicEvent"));
         toggleButton.setToggle(isEventList);
         toggleButton.setOnToggle((Boolean isEvent) -> {
             onToggle.accept(isEvent);

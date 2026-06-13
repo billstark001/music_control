@@ -6,12 +6,11 @@ import io.github.cottonmc.cotton.gui.GuiDescription;
 import io.github.cottonmc.cotton.gui.widget.*;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.VerticalAlignment;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.function.BiConsumer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import static com.github.charlyb01.music_control.categories.Music.*;
 
@@ -57,13 +56,13 @@ public class SoundConfigPanel extends WBox {
         panel.layout();
         this.cardPanel.setSelectedCard(panel);
 
-        Text addText = Text.translatable(doAdd
+        Component addText = Component.translatable(doAdd
                 ? "gui.music_control.label.add"
                 : "gui.music_control.label.remove");
-        Text eventText = Text.translatable(!isEvent && fromEvent
+        Component eventText = Component.translatable(!isEvent && fromEvent
                 ? "gui.music_control.label.music"
                 : "gui.music_control.label.event");
-        label.setText(Text.of(addText.getString() + eventText.getString()));
+        label.setText(Component.nullToEmpty(addText.getString() + eventText.getString()));
     }
 
     private void setupBar(final boolean fromEvent) {
@@ -71,22 +70,22 @@ public class SoundConfigPanel extends WBox {
             @Override
             public void addTooltip(TooltipBuilder tooltip) {
                 super.addTooltip(tooltip);
-                tooltip.add(Text.translatable("gui.music_control.toggle.removeAdd"));
+                tooltip.add(Component.translatable("gui.music_control.toggle.removeAdd"));
             }
         };
         WToggleButton musicEventButton = new WToggleButton() {
             @Override
             public void addTooltip(TooltipBuilder tooltip) {
                 super.addTooltip(tooltip);
-                tooltip.add(Text.translatable("gui.music_control.toggle.musicEvent"));
+                tooltip.add(Component.translatable("gui.music_control.toggle.musicEvent"));
             }
         };
 
-        Text addText = Text.translatable("gui.music_control.label.remove");
-        Text eventText = Text.translatable(fromEvent
+        Component addText = Component.translatable("gui.music_control.label.remove");
+        Component eventText = Component.translatable(fromEvent
                 ? "gui.music_control.label.music"
                 : "gui.music_control.label.event");
-        WLabel label = new WLabel(Text.of(addText.getString() + eventText.getString()));
+        WLabel label = new WLabel(Component.nullToEmpty(addText.getString() + eventText.getString()));
         label.setVerticalAlignment(VerticalAlignment.CENTER);
 
         removeAddButton.setOnToggle((Boolean doAdd) -> this.onButtonUpdate(doAdd, musicEventButton.getToggle(), fromEvent, label));

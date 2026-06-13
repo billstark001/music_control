@@ -7,9 +7,9 @@ import io.github.cottonmc.cotton.gui.client.LightweightGuiDescription;
 import io.github.cottonmc.cotton.gui.widget.*;
 import io.github.cottonmc.cotton.gui.widget.data.HorizontalAlignment;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 /**
  * A confirmation dialog that lets the user choose how to migrate the
@@ -38,7 +38,7 @@ public class MigrateScreen extends CottonClientScreen {
     private static LightweightGuiDescription buildGui(Screen previousScreen) {
         LightweightGuiDescription desc = new LightweightGuiDescription();
 
-        final MinecraftClient client = MinecraftClient.getInstance();
+        final Minecraft client = Minecraft.getInstance();
         final int dialogWidth = Math.max(ModConfig.get().cosmetics.gui.width, 380);
 
         // Read padding on all sides from ROOT_PANEL (typically 8px each)
@@ -49,7 +49,7 @@ public class MigrateScreen extends CottonClientScreen {
         final int cw = dialogWidth - IL - IR;  // Available content width
 
         String storedVersion  = ResourcePackUtils.readMetadataVersion();
-        String currentVersion = net.minecraft.SharedConstants.getGameVersion().name();
+        String currentVersion = net.minecraft.SharedConstants.getCurrentVersion().name();
         final String captured = storedVersion;
 
         WPlainPanel root = new WPlainPanel();
@@ -57,13 +57,13 @@ public class MigrateScreen extends CottonClientScreen {
 
         // ── Title ──────────────────────────────────────────────────
         WLabel title = new WLabel(
-                Text.translatable("gui.music_control.migrate.title"));
+                Component.translatable("gui.music_control.migrate.title"));
         title.setHorizontalAlignment(HorizontalAlignment.CENTER);
         root.add(title, IL, y, cw, 12);
         y += 16;
 
         // ── Version Information ────────────────────────────────────
-        WLabel info = new WLabel(Text.translatable(
+        WLabel info = new WLabel(Component.translatable(
                 "gui.music_control.migrate.info",
                 storedVersion != null ? storedVersion : "?",
                 currentVersion));
@@ -73,7 +73,7 @@ public class MigrateScreen extends CottonClientScreen {
 
         // ── Question Text (with line wrapping) ──────────────────────
         WText question = new WText(
-                Text.translatable("gui.music_control.migrate.question"));
+                Component.translatable("gui.music_control.migrate.question"));
         question.setHorizontalAlignment(HorizontalAlignment.CENTER);
         root.add(question, IL, y, cw, 20);
         y += 26;
@@ -83,7 +83,7 @@ public class MigrateScreen extends CottonClientScreen {
         // Using absolute positioning for manual centering aligns visual and interaction perfectly.
         final boolean[] applyImmediately = {true};
         WToggleButton applyToggle = new WToggleButton(
-                Text.translatable("gui.music_control.migrate.applyImmediately"));
+                Component.translatable("gui.music_control.migrate.applyImmediately"));
         applyToggle.setToggle(true);
         applyToggle.setOnToggle(v -> applyImmediately[0] = v);
         final int toggleW = 210;  // 9px checkbox + 4px gap + estimated text width
@@ -96,23 +96,23 @@ public class MigrateScreen extends CottonClientScreen {
         final int bx = IL + (cw - totalBtnW) / 2;  // Center the entire row
 
         WButton inPlaceButton = new WButton(
-                Text.translatable("gui.music_control.migrate.inPlace"));
+                Component.translatable("gui.music_control.migrate.inPlace"));
         inPlaceButton.setOnClick(() -> {
             ResourcePackUtils.migrateConfig(true, true, captured);
-            client.reloadResources();
+            client.reloadResourcePacks();
             client.setScreen(null);
         });
 
         WButton newPackButton = new WButton(
-                Text.translatable("gui.music_control.migrate.newPack"));
+                Component.translatable("gui.music_control.migrate.newPack"));
         newPackButton.setOnClick(() -> {
             ResourcePackUtils.migrateConfig(false, applyImmediately[0], captured);
-            client.reloadResources();
+            client.reloadResourcePacks();
             client.setScreen(null);
         });
 
         WButton cancelButton = new WButton(
-                Text.translatable("gui.music_control.migrate.cancel"));
+                Component.translatable("gui.music_control.migrate.cancel"));
         cancelButton.setOnClick(() -> client.setScreen(previousScreen));
 
         root.add(inPlaceButton, bx,                          y, bW1, bh);

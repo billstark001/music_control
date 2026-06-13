@@ -3,17 +3,16 @@ package com.github.charlyb01.music_control.categories;
 import com.github.charlyb01.music_control.client.MusicControlClient;
 import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.github.charlyb01.music_control.mixin.SoundSetAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.Sound;
-import net.minecraft.client.sound.SoundContainer;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.biome.Biome;
-
 import java.util.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.Weighted;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.biome.Biome;
 
 import static com.github.charlyb01.music_control.categories.Music.*;
 
@@ -25,7 +24,7 @@ public class MusicCategories {
 
     private MusicCategories() {}
 
-    public static void init(final MinecraftClient client) {
+    public static void init(final Minecraft client) {
         if (MusicControlClient.init) {
             PLAYED_MUSICS.clear();
             MUSIC_BY_NAMESPACE.clear();
@@ -37,14 +36,14 @@ public class MusicCategories {
             MusicControlClient.init = true;
         }
 
-        Random random = Random.createLocal();
+        RandomSource random = RandomSource.createThreadLocalInstance();
         HashSet<Music> musics = new HashSet<>();
         HashSet<Music> discs = new HashSet<>();
         MUSIC_BY_NAMESPACE.put(ALL_MUSICS, musics);
         MUSIC_BY_NAMESPACE.put(ALL_MUSIC_DISCS, discs);
 
-        for (SoundEvent soundEvent : Registries.SOUND_EVENT) {
-            Identifier event = soundEvent.id();
+        for (SoundEvent soundEvent : BuiltInRegistries.SOUND_EVENT) {
+            Identifier event = soundEvent.location();
             if (event.getPath().contains("music")) {
                 if (!EVENTS.contains(event) && !BLACK_LISTED_EVENTS.contains(event)) {
                     EVENTS.add(event);
@@ -52,27 +51,27 @@ public class MusicCategories {
                 }
 
                 String[] split = event.getPath().split("\\.");
-                RegistryKey<Biome> biomeRegistryKey;
+                ResourceKey<Biome> biomeRegistryKey;
                 if (split.length > 0
                         && (biomeRegistryKey = SoundEventRegistry.NAME_BIOME_MAP.get(
-                                Identifier.of(event.getNamespace(), split[split.length-1]))) != null) {
+                                Identifier.fromNamespaceAndPath(event.getNamespace(), split[split.length-1]))) != null) {
                     SoundEventRegistry.BIOME_MUSIC_MAP.put(biomeRegistryKey, soundEvent);
                 }
             }
         }
 
-        for (Identifier eventIdentifier : client.getSoundManager().getKeys()) {
-            if (client.getSoundManager().get(eventIdentifier) != null) {
-                List<SoundContainer<Sound>> sounds = ((SoundSetAccessor) Objects.requireNonNull(client.getSoundManager().get(eventIdentifier))).getSounds();
+        for (Identifier eventIdentifier : client.getSoundManager().getAvailableSounds()) {
+            if (client.getSoundManager().getSoundEvent(eventIdentifier) != null) {
+                List<Weighted<Sound>> sounds = ((SoundSetAccessor) Objects.requireNonNull(client.getSoundManager().getSoundEvent(eventIdentifier))).getList();
                 String namespace = eventIdentifier.getNamespace();
                 String path = eventIdentifier.getPath();
 
                 if (!path.contains("music")) continue;
 
-                for (SoundContainer<Sound> soundContainer : sounds) {
+                for (Weighted<Sound> soundContainer : sounds) {
                     if (!(soundContainer instanceof Sound)) continue;
 
-                    Identifier musicIdentifier = soundContainer.getSound(random).getIdentifier();
+                    Identifier musicIdentifier = soundContainer.getSound(random).getLocation();
                     Music music = new Music(musicIdentifier);
                     Optional<Music> optionalMusic = musics.stream()
                             .filter(music1 -> music1.getIdentifier().equals(musicIdentifier)).findAny();

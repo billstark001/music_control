@@ -6,11 +6,10 @@ import com.github.charlyb01.music_control.gui.components.ButtonListPanel;
 import io.github.cottonmc.cotton.gui.widget.WBox;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
-import net.minecraft.util.Identifier;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.function.BiConsumer;
+import net.minecraft.resources.Identifier;
 
 import static com.github.charlyb01.music_control.categories.MusicCategories.PLAYED_MUSICS;
 

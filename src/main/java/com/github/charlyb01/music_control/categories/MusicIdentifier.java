@@ -5,18 +5,17 @@ import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.github.charlyb01.music_control.config.DimensionEventChance;
 import com.github.charlyb01.music_control.config.MiscEventChance;
 import com.github.charlyb01.music_control.config.ModConfig;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.World;
-
 import java.util.ArrayList;
 import java.util.HashSet;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import static com.github.charlyb01.music_control.Utils.isNight;
 import static com.github.charlyb01.music_control.categories.Music.*;
@@ -28,8 +27,8 @@ public class MusicIdentifier {
 
     private MusicIdentifier() {}
 
-    public static HashSet<Music> getListFromEvent(final Identifier eventId, final PlayerEntity player,
-                                                    final World world, final Random random) {
+    public static HashSet<Music> getListFromEvent(final Identifier eventId, final Player player,
+                                                    final Level world, final RandomSource random) {
         HashSet<Music> musics = new HashSet<>();
         HashSet<Music> eventMusic = getListFromEvent(eventId);
         MusicControlClient.isCurrentEventEmpty = eventMusic.isEmpty();
@@ -43,10 +42,10 @@ public class MusicIdentifier {
 
         boolean playerNotNull = player != null;
 
-        if (playerNotNull && player.isGliding()) {
+        if (playerNotNull && player.isFallFlying()) {
             musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.PLAYER_FLYING)));
         }
-        if (playerNotNull && player.hasVehicle()) {
+        if (playerNotNull && player.isPassenger()) {
             if (player.getVehicle() instanceof LivingEntity) {
                 musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.PLAYER_RIDING)));
             } else {
@@ -54,7 +53,7 @@ public class MusicIdentifier {
             }
 
         }
-        if (world.getRegistryKey() == World.OVERWORLD) {
+        if (world.dimension() == Level.OVERWORLD) {
             if (isNight(world)) {
                 musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.TIME_NIGHT)));
             }
@@ -76,11 +75,11 @@ public class MusicIdentifier {
         return musics;
     }
 
-    private static void addDimensionEvent(final HashSet<Music> musics, final World world, final Random random) {
+    private static void addDimensionEvent(final HashSet<Music> musics, final Level world, final RandomSource random) {
         if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.FALLBACK)) return;
         if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.NEVER)) return;
 
-        HashSet<Music> dimensionMusic = getListFromEvent(getDimension(world.getRegistryKey()));
+        HashSet<Music> dimensionMusic = getListFromEvent(getDimension(world.dimension()));
         if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.HALF)) {
             if (random.nextBoolean()) {
                 return;
@@ -111,7 +110,7 @@ public class MusicIdentifier {
         return musics;
     }
 
-    public static Identifier getFromList(final HashSet<Music> musics, final Random random) {
+    public static Identifier getFromList(final HashSet<Music> musics, final RandomSource random) {
         if (musics.isEmpty()) return null;
 
         Identifier music;
@@ -130,7 +129,7 @@ public class MusicIdentifier {
         return music;
     }
 
-    public static Identifier getFromCategory(final Random random) {
+    public static Identifier getFromCategory(final RandomSource random) {
         if (MUSIC_BY_NAMESPACE.containsKey(MusicControlClient.currentCategory)) {
             HashSet<Music> musics = MUSIC_BY_NAMESPACE.get(MusicControlClient.currentCategory);
             return getFromList(musics, random);
@@ -139,11 +138,11 @@ public class MusicIdentifier {
         }
     }
 
-    private static Identifier getDimension(final RegistryKey<World> world) {
+    private static Identifier getDimension(final ResourceKey<Level> world) {
         Identifier eventId;
-        if (world.equals(World.NETHER)) {
+        if (world.equals(Level.NETHER)) {
             eventId = getFromSoundEvent(SoundEventRegistry.NETHER);
-        } else if (world.equals(World.END)) {
+        } else if (world.equals(Level.END)) {
             eventId = getFromSoundEvent(SoundEvents.MUSIC_END);
         } else {
             eventId = getFromSoundEvent(SoundEvents.MUSIC_GAME);
@@ -151,7 +150,7 @@ public class MusicIdentifier {
         return eventId;
     }
 
-    public static Identifier getFallback(final RegistryKey<World> world, final boolean creative, final Random random) {
+    public static Identifier getFallback(final ResourceKey<Level> world, final boolean creative, final RandomSource random) {
         HashSet<Music> musics = new HashSet<>();
         if (ModConfig.get().general.event.creativeEventFallback && creative) {
             musics.addAll(getListFromEvent(getFromSoundEvent(SoundEvents.MUSIC_CREATIVE)));
@@ -166,8 +165,8 @@ public class MusicIdentifier {
                 : MusicIdentifier.getFromList(musics, random);
     }
 
-    public static Identifier getFromSoundEvent(final RegistryEntry.Reference<SoundEvent> soundEvent) {
-        return soundEvent.value().id();
+    public static Identifier getFromSoundEvent(final Holder.Reference<SoundEvent> soundEvent) {
+        return soundEvent.value().location();
     }
 
     public static boolean shouldChangeMusic(final Identifier eventId) {

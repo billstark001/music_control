@@ -2,18 +2,17 @@ package com.github.charlyb01.music_control.gui.components;
 
 import io.github.cottonmc.cotton.gui.widget.TooltipBuilder;
 import io.github.cottonmc.cotton.gui.widget.WTextField;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-
 import java.util.ArrayList;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 public class TextField extends WTextField {
     private final static int RENDER_DELAY = 20;
 
     private int tickCount = 0;
-    private final ArrayList<Text> tooltips;
+    private final ArrayList<Component> tooltips;
 
-    public TextField(Text suggestion, ArrayList<Text> tooltips) {
+    public TextField(Component suggestion, ArrayList<Component> tooltips) {
         super(suggestion);
         this.setMaxLength(100);
         this.tooltips = tooltips;
@@ -22,13 +21,13 @@ public class TextField extends WTextField {
     @Override
     public void addTooltip(TooltipBuilder tooltip) {
         super.addTooltip(tooltip);
-        for (Text text : this.tooltips) {
+        for (Component text : this.tooltips) {
             tooltip.add(text);
         }
     }
 
     @Override
-    public void renderTooltip(DrawContext context, int x, int y, int tX, int tY) {
+    public void renderTooltip(GuiGraphicsExtractor context, int x, int y, int tX, int tY) {
         if (this.tickCount < RENDER_DELAY) return;
         super.renderTooltip(context, x, y, tX, tY);
     }

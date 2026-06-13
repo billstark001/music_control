@@ -10,11 +10,11 @@ import com.google.gson.JsonObject;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.SharedConstants;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.Resource;
 import org.jspecify.annotations.NonNull;
 
 import java.io.FileReader;
@@ -48,12 +48,12 @@ public class ResourcePackUtils {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static boolean exists() {
-        return MinecraftClient.getInstance().getResourcePackManager().getIds().stream().anyMatch(
+        return Minecraft.getInstance().getResourcePackRepository().getAvailableIds().stream().anyMatch(
                 name -> name.startsWith(RESOURCEPACK_PROFILE_NAME));
     }
 
     public static boolean wasCreatedOrIsEnabled() {
-        return WAS_CREATED || MinecraftClient.getInstance().getResourcePackManager().getEnabledIds().stream().anyMatch(
+        return WAS_CREATED || Minecraft.getInstance().getResourcePackRepository().getSelectedIds().stream().anyMatch(
                 name -> name.startsWith(RESOURCEPACK_PROFILE_NAME));
     }
 
@@ -64,7 +64,7 @@ public class ResourcePackUtils {
     public static boolean needsMigration() {
         String storedVersion = readMetadataVersion();
         if (storedVersion == null) return false;
-        return !storedVersion.equals(SharedConstants.getGameVersion().name());
+        return !storedVersion.equals(SharedConstants.getCurrentVersion().name());
     }
 
     /**
@@ -226,7 +226,7 @@ public class ResourcePackUtils {
      */
     private static void writeMigratedMetadata(JsonObject changesObj) {
         JsonObject meta = new JsonObject();
-        meta.addProperty("minecraft_version", SharedConstants.getGameVersion().name());
+        meta.addProperty("minecraft_version", SharedConstants.getCurrentVersion().name());
         meta.add("changes", changesObj);
 
         Path metaPath = getMetadataPath();
@@ -247,11 +247,11 @@ public class ResourcePackUtils {
         Path rp = RESOURCEPACK_PATH;
         if (rp == null) {
             // Try to resolve from enabled packs without side effects
-            Optional<String> selected = MinecraftClient.getInstance()
-                    .getResourcePackManager().getEnabledIds().stream()
+            Optional<String> selected = Minecraft.getInstance()
+                    .getResourcePackRepository().getSelectedIds().stream()
                     .filter(n -> n.startsWith(RESOURCEPACK_PROFILE_NAME)).findFirst();
             if (selected.isEmpty()) return null;
-            rp = MinecraftClient.getInstance().getResourcePackDir()
+            rp = Minecraft.getInstance().getResourcePackDirectory()
                     .resolve(selected.get().substring(5));
         }
         Path filePath = rp.resolve("music_control_meta.json");
@@ -406,7 +406,7 @@ public class ResourcePackUtils {
 
         // Build metadata document
         JsonObject meta = new JsonObject();
-        meta.addProperty("minecraft_version", SharedConstants.getGameVersion().name());
+        meta.addProperty("minecraft_version", SharedConstants.getCurrentVersion().name());
         JsonObject changesObj = new JsonObject();
         for (Map.Entry<String, JsonObject> entry : changes.entrySet()) {
             changesObj.add(entry.getKey(), entry.getValue());
@@ -431,9 +431,9 @@ public class ResourcePackUtils {
     private static TreeMap<String, TreeSet<String>> loadVanillaSounds(String namespace) {
         TreeMap<String, TreeSet<String>> result = new TreeMap<>();
         try {
-            Identifier soundsId = Identifier.of(namespace, "sounds.json");
-            List<Resource> resources = MinecraftClient.getInstance()
-                    .getResourceManager().getAllResources(soundsId);
+            Identifier soundsId = Identifier.fromNamespaceAndPath(namespace, "sounds.json");
+            List<Resource> resources = Minecraft.getInstance()
+                    .getResourceManager().getResourceStack(soundsId);
             if (resources.isEmpty()) return result;
 
             // getAllResources returns from lowest to highest priority;
@@ -443,19 +443,19 @@ public class ResourcePackUtils {
                     ? RESOURCEPACK_PATH.getFileName().toString() : null;
             Resource vanillaResource = null;
             for (Resource resource : resources) {
-                if (ourPackName == null || !resource.getPack().getId().contains(ourPackName)) {
+                if (ourPackName == null || !resource.source().packId().contains(ourPackName)) {
                     vanillaResource = resource;
                     break;
                 }
             }
             if (vanillaResource == null) return result;
 
-            try (InputStreamReader reader = new InputStreamReader(vanillaResource.getInputStream())) {
+            try (InputStreamReader reader = new InputStreamReader(vanillaResource.open())) {
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
                 if (json == null) return result;
                 for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
                     if (!entry.getKey().contains("music")) continue;
-                    if (BLACK_LISTED_EVENTS.contains(Identifier.ofVanilla(entry.getKey()))) continue;
+                    if (BLACK_LISTED_EVENTS.contains(Identifier.withDefaultNamespace(entry.getKey()))) continue;
                     String eventId = namespace + ":" + entry.getKey();
                     TreeSet<String> sounds = getSoundStrings(namespace, entry);
                     result.put(eventId, sounds);
@@ -519,8 +519,8 @@ public class ResourcePackUtils {
         }
 
         WAS_CREATED = true;
-        MinecraftClient.getInstance().getResourcePackManager().scanPacks();
-        MinecraftClient.getInstance().getResourcePackManager().enable(resourcePackProfileName);
+        Minecraft.getInstance().getResourcePackRepository().reload();
+        Minecraft.getInstance().getResourcePackRepository().addPack(resourcePackProfileName);
     }
 
     /**
@@ -532,7 +532,7 @@ public class ResourcePackUtils {
      *                         otherwise it is only created on disk.
      */
     private static void createMigrationResourcePack(String fromVersion, boolean applyImmediately) {
-        String toVersion = SharedConstants.getGameVersion().name();
+        String toVersion = SharedConstants.getCurrentVersion().name();
         String resourcePackProfileName = findNextAvailableMigrationPath(fromVersion, toVersion);
 
         try {
@@ -562,10 +562,10 @@ public class ResourcePackUtils {
             }
         }
 
-        MinecraftClient.getInstance().getResourcePackManager().scanPacks();
+        Minecraft.getInstance().getResourcePackRepository().reload();
         if (applyImmediately) {
             WAS_CREATED = true;
-            MinecraftClient.getInstance().getResourcePackManager().enable(resourcePackProfileName);
+            Minecraft.getInstance().getResourcePackRepository().addPack(resourcePackProfileName);
         }
     }
 
@@ -580,7 +580,7 @@ public class ResourcePackUtils {
         String safe_to   = toVersion.replace('.', '_');
         String base = MusicControlClient.MOD_ID + "_" + safe_from + "_to_" + safe_to;
 
-        final Path resourcePackDir = MinecraftClient.getInstance().getResourcePackDir();
+        final Path resourcePackDir = Minecraft.getInstance().getResourcePackDirectory();
         RESOURCEPACK_PATH = resourcePackDir.resolve(base);
         String resourcePackName = base;
         int i = 1;
@@ -597,7 +597,7 @@ public class ResourcePackUtils {
         String resourcePackName = MusicControlClient.MOD_ID;
         int i = 0;
 
-        final Path resourcePackDir = MinecraftClient.getInstance().getResourcePackDir();
+        final Path resourcePackDir = Minecraft.getInstance().getResourcePackDirectory();
         RESOURCEPACK_PATH = resourcePackDir.resolve(resourcePackName);
 
         while (Files.exists(RESOURCEPACK_PATH)) {
@@ -610,10 +610,10 @@ public class ResourcePackUtils {
     }
 
     private static void setPaths() {
-        Optional<String> selectedResourcePack = MinecraftClient.getInstance().getResourcePackManager().getEnabledIds().stream()
+        Optional<String> selectedResourcePack = Minecraft.getInstance().getResourcePackRepository().getSelectedIds().stream()
                 .filter(name -> name.startsWith(RESOURCEPACK_PROFILE_NAME)).findFirst();
         selectedResourcePack.ifPresent(name -> {
-            RESOURCEPACK_PATH = MinecraftClient.getInstance().getResourcePackDir().resolve(name.substring(5));
+            RESOURCEPACK_PATH = Minecraft.getInstance().getResourcePackDirectory().resolve(name.substring(5));
             ASSETS_PATH = RESOURCEPACK_PATH.resolve("assets");
         });
     }
@@ -626,10 +626,10 @@ public class ResourcePackUtils {
 
                 JsonObject data = new JsonObject();
                 JsonObject pack = new JsonObject();
-                int format = SharedConstants.getGameVersion().packVersion(ResourceType.CLIENT_RESOURCES).major();
+                int format = SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major();
                 pack.addProperty("min_format", format);
                 pack.addProperty("max_format", format + 1);
-                pack.addProperty("description", Text.translatable("music_control.metadata.description").getString());
+                pack.addProperty("description", Component.translatable("music_control.metadata.description").getString());
                 data.add("pack", pack);
 
                 try (PrintWriter out = new PrintWriter(new FileWriter(path.toFile()))) {

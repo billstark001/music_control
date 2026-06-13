@@ -5,11 +5,10 @@ import com.github.charlyb01.music_control.config.FilterOperator;
 import com.github.charlyb01.music_control.config.ModConfig;
 import io.github.cottonmc.cotton.gui.widget.WBox;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
-import net.minecraft.util.Identifier;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import net.minecraft.resources.Identifier;
 
 public class ButtonListPanel extends WBox {
     private final FilterListPanel<Identifier, Button> items;

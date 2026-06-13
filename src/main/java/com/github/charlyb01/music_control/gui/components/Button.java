@@ -3,7 +3,7 @@ package com.github.charlyb01.music_control.gui.components;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.config.ScrollSpeed;
 import io.github.cottonmc.cotton.gui.widget.WButton;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public class Button extends WButton {
     private String text = null;
@@ -23,7 +23,7 @@ public class Button extends WButton {
         this.text = text + BLANK_SPACE + truncatedText;
         this.length = text.length() + BLANK_SPACE.length();
         this.shouldUpdate = text.length() > this.maxLength;
-        this.setLabel(Text.of(truncatedText));
+        this.setLabel(Component.nullToEmpty(truncatedText));
     }
 
     @Override
@@ -37,7 +37,7 @@ public class Button extends WButton {
             if (this.offset != 0) {
                 this.offset = 0;
                 this.tickCount = 0;
-                this.setLabel(Text.of(this.text.substring(0, this.maxLength)));
+                this.setLabel(Component.nullToEmpty(this.text.substring(0, this.maxLength)));
             }
             return;
         }
@@ -48,6 +48,6 @@ public class Button extends WButton {
         }
 
         ++this.offset;
-        this.setLabel(Text.of(this.text.substring(this.offset, this.maxLength + this.offset)));
+        this.setLabel(Component.nullToEmpty(this.text.substring(this.offset, this.maxLength + this.offset)));
     }
 }

@@ -1,15 +1,15 @@
 package com.github.charlyb01.music_control.mixin;
 
-import net.minecraft.client.sound.Sound;
-import net.minecraft.client.sound.SoundContainer;
-import net.minecraft.client.sound.WeightedSoundSet;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.List;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.client.sounds.Weighted;
 
-@Mixin(WeightedSoundSet.class)
+@Mixin(WeighedSoundEvents.class)
 public interface SoundSetAccessor {
     @Accessor
-    List<SoundContainer<Sound>> getSounds();
+    List<Weighted<Sound>> getList();
 }

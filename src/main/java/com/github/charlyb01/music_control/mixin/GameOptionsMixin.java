@@ -1,24 +1,24 @@
 package com.github.charlyb01.music_control.mixin;
 
 import com.github.charlyb01.music_control.imixin.GameOptionsAccess;
-import net.minecraft.client.option.GameOptions;
-import net.minecraft.client.option.SimpleOption;
-import net.minecraft.sound.SoundCategory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.Map;
+import net.minecraft.client.OptionInstance;
+import net.minecraft.client.Options;
+import net.minecraft.sounds.SoundSource;
 
-@Mixin(GameOptions.class)
+@Mixin(Options.class)
 public class GameOptionsMixin implements GameOptionsAccess {
-    @Shadow @Final private Map<SoundCategory, SimpleOption<Double>> soundVolumeLevels;
+    @Shadow @Final private Map<SoundSource, OptionInstance<Double>> soundSourceVolumes;
 
     @Override
-    public void music_control$setSoundCategoryVolume(final SoundCategory soundCategory, final double volume) {
-        SimpleOption<Double> simpleOption = this.soundVolumeLevels.get(soundCategory);
+    public void music_control$setSoundCategoryVolume(final SoundSource soundCategory, final double volume) {
+        OptionInstance<Double> simpleOption = this.soundSourceVolumes.get(soundCategory);
         if (simpleOption != null) {
-            simpleOption.setValue(volume);
+            simpleOption.set(volume);
         }
     }
 }

@@ -7,7 +7,7 @@ import me.shedaniel.autoconfig.serializer.PartitioningSerializer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class MusicControlClient implements ClientModInitializer {
@@ -90,6 +90,6 @@ public class MusicControlClient implements ClientModInitializer {
     }
 
     public static Identifier id(final String path) {
-        return Identifier.of(MOD_ID, path);
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 }
