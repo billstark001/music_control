@@ -4,6 +4,25 @@
 * **x.X versions** are either updates that add content or major bug fixes
 * **x.x.X versions** are either small content update (language translation, keybind change, ...) or bug fixes
 
+## v1.9.4
+### Fixes
+* Fix volume keybindings drifting toward an incorrect value when master volume is below 100%
+* Keep music controls responsive when another mod cancels or replaces Minecraft's music tick
+* Restore the Mod Menu configuration screen with the client AutoConfig API
+* Enforce a five-second minimum music delay
+* Restore LibGui dependency resolution after the old repository became unavailable
+
+### Development
+* Migrate the 1.21.11 sources from Yarn to Mojang mappings
+* Introduce a versioned Gradle module layout in preparation for supporting multiple Minecraft versions from one branch
+* Add regression tests for music volume adjustments
+
+## v1.9.3
+* Port to Minecraft 1.21.11 and remove obsolete APIs
+* Rework music playback as a state machine for more stable track changes, pausing, and separate fade-in/fade-out behavior
+* Preserve resource-file ordering and add config version migration with an in-game migration screen
+* Update translations
+
 ## v1.9.2
 * Remove "musicDontPause" option as it's now vanilla since 1.21.6
 * Remove "randomDelay" option as frequency is now manageable since 1.21.6
