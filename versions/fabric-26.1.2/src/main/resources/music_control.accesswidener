@@ -1,0 +1,3 @@
+accessWidener	v2	official
+accessible class net/minecraft/client/sounds/SoundManager$Preparations
+accessible  method  net/minecraft/client/sounds/SoundManager validateSoundResource (Lnet/minecraft/client/resources/sounds/Sound;Lnet/minecraft/resources/Identifier;Lnet/minecraft/server/packs/resources/ResourceProvider;)Z

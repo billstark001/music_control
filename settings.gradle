@@ -15,4 +15,7 @@ plugins {
 
 rootProject.name = "music_control"
 
-include("versions:fabric-1.21.11")
+include(
+    "versions:fabric-1.21.11",
+    "versions:fabric-26.1.2"
+)

@@ -14,20 +14,39 @@ ext.targets = [
         modMenu: "17.0.1-beta.1",
         clothConfig: "21.11.153",
         libGui: "15.1.0+1.21.11",
-        minecraftRange: "~1.21.11"
+        minecraftRange: "~1.21.11",
+        remapped: true
+    ],
+    "26.1.2": [
+        minecraft: "26.1.2",
+        javaVersion: 25,
+        mixinJava: "JAVA_25",
+        fabricApi: "0.151.0+26.1.2",
+        fabricApiMin: "0.151.0",
+        modMenu: "18.0.0",
+        clothConfig: "26.1.154",
+        libGui: "16.0.1+26.1",
+        minecraftRange: "~26.1.2",
+        remapped: false
     ]
 ]
 
 tasks.register("buildAll") {
     group = "build"
     description = "Builds every supported Fabric target."
-    dependsOn(":versions:fabric-1.21.11:build")
+    dependsOn(
+        ":versions:fabric-1.21.11:build",
+        ":versions:fabric-26.1.2:build"
+    )
 }
 
 tasks.register("checkAll") {
     group = "verification"
     description = "Checks every supported Fabric target."
-    dependsOn(":versions:fabric-1.21.11:check")
+    dependsOn(
+        ":versions:fabric-1.21.11:check",
+        ":versions:fabric-26.1.2:check"
+    )
 }
 
 tasks.named("build") {
