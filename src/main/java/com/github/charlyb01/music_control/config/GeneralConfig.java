@@ -12,7 +12,7 @@ public class GeneralConfig implements ConfigData {
 
     public static class Timer {
         @ConfigEntry.Gui.Tooltip(count = 2)
-        @ConfigEntry.BoundedDiscrete(min = 1, max = 1800)
+        @ConfigEntry.BoundedDiscrete(min = 5, max = 1800)
         public int maxDelay = 300;
         @ConfigEntry.Gui.Tooltip
         public boolean changeMusicOnBiomeSwitch = true;
