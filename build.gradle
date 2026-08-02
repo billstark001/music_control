@@ -9,7 +9,21 @@ group = project.maven_group
 repositories {
     maven { url "https://maven.terraformersmc.com/releases/" }
     maven { url "https://maven.shedaniel.me/" }
-    maven { url "https://server.bbkr.space/artifactory/libs-release" }
+    exclusiveContent {
+        forRepositories(
+            maven {
+                name = "CottonMC-AlexIIL-staging"
+                url = uri("https://staging.alexiil.uk/maven")
+            },
+            mavenCentral()
+        )
+        filter {
+            includeGroup("io.github.cottonmc")
+            includeGroup("io.github.juuxel")
+            includeGroup("alexiil.mc.lib")
+            includeGroup("alexiil.mc.mod")
+        }
+    }
     mavenCentral()
 }
 
