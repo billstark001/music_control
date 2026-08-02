@@ -6,6 +6,12 @@ remappedSrc/
 .idea/
 .vscode/
 
+# Eclipse
+.classpath
+.project
+.settings/
+*.launch
+
 *.iml
 *.ipr
 *.iws
