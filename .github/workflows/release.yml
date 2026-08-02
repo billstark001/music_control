@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Validate release version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          project_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          if [[ "$tag_version" != "$project_version" ]]; then
+            echo "Tag version $tag_version does not match mod_version $project_version" >&2
+            exit 1
+          fi
+      - name: Build every supported target
+        run: ./gradlew clean buildAll --no-parallel --stacktrace
+      - name: Extract release notes
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## v${tag_version}" '
+            $0 == heading { found = 1; next }
+            found && /^## v/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "No changelog section found for v${tag_version}" >&2
+            exit 1
+          fi
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            versions/fabric-1.21.11/build/libs/music_control-*+1.21.11-fabric.jar \
+            versions/fabric-26.1.2/build/libs/music_control-*+26.1.2-fabric.jar \
+            versions/fabric-26.2/build/libs/music_control-*+26.2-fabric.jar \
+            --title "Music Control $GITHUB_REF_NAME" \
+            --notes-file release-notes.md
