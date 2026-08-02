@@ -2,6 +2,7 @@ package com.github.charlyb01.music_control.client;
 
 import com.github.charlyb01.music_control.Utils;
 import com.github.charlyb01.music_control.imixin.GameOptionsAccess;
+import com.github.charlyb01.music_control.imixin.MusicTrackerAccess;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.gui.MusicControlGUI;
 import com.github.charlyb01.music_control.gui.MusicControlScreen;
@@ -151,6 +152,8 @@ public class MusicKeyBinding {
             while (openMenu.wasPressed()) {
                 client.setScreen(new MusicControlScreen(new MusicControlGUI(client)));
             }
+
+            ((MusicTrackerAccess) client.getMusicTracker()).music_control$handlePendingKeyInputs();
         });
     }
 

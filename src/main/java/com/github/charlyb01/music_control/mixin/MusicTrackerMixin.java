@@ -7,6 +7,7 @@ import com.github.charlyb01.music_control.categories.MusicIdentifier;
 import com.github.charlyb01.music_control.client.MusicControlClient;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.imixin.PauseResumeIMixin;
+import com.github.charlyb01.music_control.imixin.MusicTrackerAccess;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.*;
@@ -77,7 +78,7 @@ import static com.github.charlyb01.music_control.categories.Music.EMPTY_MUSIC;
  * </ul>
  */
 @Mixin(MusicTracker.class)
-public abstract class MusicTrackerMixin {
+public abstract class MusicTrackerMixin implements MusicTrackerAccess {
 
     // ── Shadowed vanilla fields / methods ────────────────────────────────────
 
@@ -166,10 +167,24 @@ public abstract class MusicTrackerMixin {
             ci.cancel();
         }
 
-        // Housekeeping runs regardless of vanilla/mod path.
-        handleKeyInputs();
+        // State housekeeping runs regardless of vanilla/mod path.
         syncState();
         holdTimerIfPaused();
+    }
+
+    @Override
+    public void music_control$handlePendingKeyInputs() {
+        if (this.client.world == null) {
+            MusicControlClient.previousMusic = false;
+            MusicControlClient.nextMusic = false;
+            MusicControlClient.pauseResume = false;
+            MusicControlClient.previousCategory = false;
+            MusicControlClient.nextCategory = false;
+            MusicControlClient.printMusic = false;
+            return;
+        }
+
+        handleKeyInputs();
     }
 
     // =========================================================================
