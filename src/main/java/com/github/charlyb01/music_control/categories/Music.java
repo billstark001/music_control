@@ -85,8 +85,9 @@ public class Music implements Comparable<Music> {
 
         final String idString = identifier.toString();
         final String path = identifier.getPath();
-        if (LAST_LANG_INSTANCE.has(idString)) {
-            TRANSLATION_CACHE.put(identifier, Component.translatable(idString));
+        if (isMusicFile(identifier)) {
+            TRANSLATION_CACHE.put(identifier, Component.translatable(
+                    MusicTranslationKeys.fromSound(identifier)));
 
         // Get official biome translation for biomes' music
         } else if (MusicIdentifier.isBiome(identifier)) {
@@ -98,12 +99,19 @@ public class Music implements Comparable<Music> {
                     "music.format.dimension", Component.translatable(path)));
         } else if (MusicIdentifier.isDisc(identifier)) {
             TRANSLATION_CACHE.put(identifier, Component.translatable(
-                "music.format.disc", Component.translatable(path)));
+                    "music.format.disc", Component.translatable(
+                            MusicTranslationKeys.fromDiscEvent(identifier))));
         } else if (MusicIdentifier.isMisc(identifier)) {
             TRANSLATION_CACHE.put(identifier, Component.translatable(
                     "music.format.misc", Component.translatable(path)));
         }
 
         return TRANSLATION_CACHE.getOrDefault(identifier, Component.translatable(idString));
+    }
+
+    private static boolean isMusicFile(final Identifier identifier) {
+        final HashSet<Music> musics = MUSIC_BY_NAMESPACE.get(ALL_MUSICS);
+        return musics != null && musics.stream()
+                .anyMatch(music -> music.identifier.equals(identifier));
     }
 }

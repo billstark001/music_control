@@ -4,6 +4,12 @@
 * **x.X versions** are either updates that add content or major bug fixes
 * **x.x.X versions** are either small content update (language translation, keybind change, ...) or bug fixes
 
+## v1.10.0
+### Versions
+* Use Minecraft's built-in translations for background music and jukebox songs instead of maintaining duplicate track names
+* Normalize background-music and jukebox-song keys in Minecraft's now-playing toast
+* Add Traditional Chinese (Taiwan) translation
+
 ## v1.9.4
 ### Fixes
 * Fix volume keybindings drifting toward an incorrect value when master volume is below 100%

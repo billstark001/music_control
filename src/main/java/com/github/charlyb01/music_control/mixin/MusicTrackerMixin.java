@@ -4,6 +4,7 @@ import com.github.charlyb01.music_control.Utils;
 import com.github.charlyb01.music_control.categories.Music;
 import com.github.charlyb01.music_control.categories.MusicCategories;
 import com.github.charlyb01.music_control.categories.MusicIdentifier;
+import com.github.charlyb01.music_control.categories.MusicTranslationKeys;
 import com.github.charlyb01.music_control.client.MusicControlClient;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.imixin.PauseResumeIMixin;
@@ -27,6 +28,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.HashSet;
 
@@ -536,6 +538,15 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
         }
     }
 
+    /** Replaces vanilla's slash-delimited sound id with its actual language key. */
+    @Inject(method = "getCurrentMusicTranslationKey", at = @At("RETURN"), cancellable = true)
+    private void correctCurrentMusicTranslationKey(final CallbackInfoReturnable<String> cir) {
+        if (this.currentMusic == null || this.currentMusic.getSound() == null) return;
+
+        cir.setReturnValue(MusicTranslationKeys.fromSound(
+                this.currentMusic.getSound().getLocation()));
+    }
+
     @Unique
     private void printPaused() {
         Utils.print(this.minecraft, Component.translatable("music.paused"));
@@ -568,7 +579,8 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
             Component category = Component.translatableWithFallback(
                     "music.category." + MusicControlClient.currentCategory,
                     MusicControlClient.currentCategory.toUpperCase().replace('_', ' '));
-            Component music   = Component.translatable(id);
+            Component music = Music.getTranslatedText(
+                    this.currentMusic.getSound().getLocation());
             Component content = MusicControlClient.categoryChanged
                     ? Component.translatable("music.format.category", category, music)
                     : music;
