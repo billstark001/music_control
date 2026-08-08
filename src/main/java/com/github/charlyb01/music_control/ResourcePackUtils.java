@@ -2,6 +2,10 @@ package com.github.charlyb01.music_control;
 
 import com.github.charlyb01.music_control.categories.Music;
 import com.github.charlyb01.music_control.client.MusicControlClient;
+import com.github.charlyb01.music_control.client.MusicGraphManager;
+import com.github.charlyb01.music_control.client.MusicGraphSnapshot;
+import com.github.charlyb01.music_control.client.MusicVersionProfile;
+import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -28,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -35,7 +40,6 @@ import java.util.TreeSet;
 
 import static com.github.charlyb01.music_control.categories.Music.EVENTS_OF_EVENT;
 import static com.github.charlyb01.music_control.categories.Music.MUSIC_BY_EVENT;
-import static com.github.charlyb01.music_control.categories.Music.BLACK_LISTED_EVENTS;
 import static com.github.charlyb01.music_control.categories.MusicCategories.NAMESPACES;
 
 public class ResourcePackUtils {
@@ -122,10 +126,13 @@ public class ResourcePackUtils {
         TreeMap<String, TreeSet<String>> toRemove = new TreeMap<>();
         TreeMap<String, TreeSet<String>> toAdd = new TreeMap<>();
         for (Map.Entry<String, JsonElement> entry : changesObj.entrySet()) {
-            String eventId = entry.getKey();
+            Identifier parsedEvent = Identifier.tryParse(entry.getKey());
+            String eventId = parsedEvent == null
+                    ? entry.getKey()
+                    : parsedEvent.toString();
             JsonObject change = entry.getValue().getAsJsonObject();
-            TreeSet<String> removeSet = new TreeSet<>();
-            TreeSet<String> addSet = new TreeSet<>();
+            TreeSet<String> removeSet = toRemove.computeIfAbsent(eventId, ignored -> new TreeSet<>());
+            TreeSet<String> addSet = toAdd.computeIfAbsent(eventId, ignored -> new TreeSet<>());
             if (change.has("remove")) {
                 for (JsonElement el : change.getAsJsonArray("remove")) {
                     removeSet.add(el.getAsString());
@@ -136,8 +143,28 @@ public class ResourcePackUtils {
                     addSet.add(el.getAsString());
                 }
             }
-            toRemove.put(eventId, removeSet);
-            toAdd.put(eventId, addSet);
+        }
+
+        TreeSet<String> silentEvents = new TreeSet<>();
+        if (storedMeta.has("silent_events")) {
+            for (JsonElement event : storedMeta.getAsJsonArray("silent_events")) {
+                Identifier parsed = Identifier.tryParse(event.getAsString());
+                if (parsed != null) silentEvents.add(parsed.toString());
+            }
+        }
+        TreeMap<String, TreeSet<Identifier>> eventLinks = new TreeMap<>();
+        if (storedMeta.has("event_links")) {
+            for (Map.Entry<String, JsonElement> entry
+                    : storedMeta.getAsJsonObject("event_links").entrySet()) {
+                Identifier event = Identifier.tryParse(entry.getKey());
+                if (event == null) continue;
+                TreeSet<Identifier> links = eventLinks.computeIfAbsent(
+                        event.toString(), ignored -> new TreeSet<>());
+                for (JsonElement linkedValue : entry.getValue().getAsJsonArray()) {
+                    Identifier linked = Identifier.tryParse(linkedValue.getAsString());
+                    if (linked != null) links.add(linked);
+                }
+            }
         }
 
         // If creating a new pack, set up a fresh resource pack first
@@ -146,88 +173,77 @@ public class ResourcePackUtils {
             // createMigrationResourcePack sets RESOURCEPACK_PATH / ASSETS_PATH and WAS_CREATED
         }
 
-        // Load vanilla sounds for each namespace and apply the user's changes
+        Map<Identifier, EventDefinition> definitions = new HashMap<>();
         for (String namespace : NAMESPACES) {
             TreeMap<String, TreeSet<String>> vanillaSounds = loadVanillaSounds(namespace);
-
-            // Collect all event IDs that are relevant for this namespace
             TreeSet<String> allEventIds = new TreeSet<>(vanillaSounds.keySet());
-            // Also include events in toAdd/toRemove that belong to this namespace
-            for (String eventId : toRemove.keySet()) {
-                if (eventId.startsWith(namespace + ":")) allEventIds.add(eventId);
-            }
-            for (String eventId : toAdd.keySet()) {
-                if (eventId.startsWith(namespace + ":")) allEventIds.add(eventId);
-            }
-
-            TreeMap<String, JsonObject> nsMap = new TreeMap<>();
+            toRemove.keySet().stream().filter(id -> id.startsWith(namespace + ":")).forEach(allEventIds::add);
+            toAdd.keySet().stream().filter(id -> id.startsWith(namespace + ":")).forEach(allEventIds::add);
+            silentEvents.stream().filter(id -> id.startsWith(namespace + ":")).forEach(allEventIds::add);
+            eventLinks.keySet().stream().filter(id -> id.startsWith(namespace + ":")).forEach(allEventIds::add);
 
             for (String eventId : allEventIds) {
-                // Parse namespace:path
-                int colonIdx = eventId.indexOf(':');
-                if (colonIdx < 0) continue;
-                String eventPath = eventId.substring(colonIdx + 1);
-
-                TreeSet<String> soundSet = new TreeSet<>(
-                        vanillaSounds.getOrDefault(eventId, new TreeSet<>()));
-
-                // Apply removes (only vanilla sounds can be removed)
-                TreeSet<String> removeSet = toRemove.getOrDefault(eventId, new TreeSet<>());
-                soundSet.removeAll(removeSet);
-
-                // Apply adds (new sounds not in vanilla)
-                TreeSet<String> addSet = toAdd.getOrDefault(eventId, new TreeSet<>());
-                soundSet.addAll(addSet);
-
-                // If the user deliberately removed all sounds from a vanilla event,
-                // soundSet will be empty here – we still write the entry so the
-                // replace:true directive suppresses vanilla sounds for that event.
-
-                JsonArray sounds = new JsonArray();
-                for (String name : soundSet) {
-                    JsonObject fileSound = new JsonObject();
-                    fileSound.addProperty("name", name);
-                    fileSound.addProperty("stream", true);
-                    sounds.add(fileSound);
-                }
-
-                JsonObject soundEvent = new JsonObject();
-                soundEvent.addProperty("category", "music");
-                soundEvent.addProperty("replace", true);
-                soundEvent.add("sounds", sounds);
-
-                nsMap.put(eventPath, soundEvent);
-            }
-
-            // Write sounds.json
-            Path soundPath = getSoundPath(namespace);
-            if (soundPath == null) continue;
-            JsonObject root = new JsonObject();
-            for (Map.Entry<String, JsonObject> e : nsMap.entrySet()) {
-                root.add(e.getKey(), e.getValue());
-            }
-            try (PrintWriter out = new PrintWriter(new FileWriter(soundPath.toFile()))) {
-                out.write(GSON.toJson(root));
-                out.flush();
-            } catch (Exception e) {
-                e.printStackTrace();
+                Identifier id = Identifier.tryParse(eventId);
+                if (id == null) continue;
+                EventDefinition definition = new EventDefinition();
+                definition.sounds.addAll(vanillaSounds.getOrDefault(eventId, new TreeSet<>()));
+                definition.sounds.removeAll(toRemove.getOrDefault(eventId, new TreeSet<>()));
+                definition.sounds.addAll(toAdd.getOrDefault(eventId, new TreeSet<>()));
+                definition.events.addAll(eventLinks.getOrDefault(eventId, new TreeSet<>()));
+                definition.explicitSilence = silentEvents.contains(eventId);
+                definitions.put(id, definition);
             }
         }
+        applyPortableProjection(definitions, MusicGraphManager.current());
+        writeDefinitions(definitions);
 
         // Update metadata with new version and same changes (recomputed via writeMetadata)
         // We need MUSIC_BY_EVENT to be consistent, but since this is a migration outside the
         // normal edit flow we simply rewrite metadata with the new game version + same changes.
-        writeMigratedMetadata(changesObj);
+        writeMigratedMetadata(buildChangesObject(toRemove, toAdd), silentEvents, eventLinks);
+        writeGraphConfig(MusicGraphManager.current());
+    }
+
+    private static JsonObject buildChangesObject(
+            Map<String, TreeSet<String>> toRemove,
+            Map<String, TreeSet<String>> toAdd) {
+        TreeSet<String> eventIds = new TreeSet<>(toRemove.keySet());
+        eventIds.addAll(toAdd.keySet());
+
+        JsonObject changes = new JsonObject();
+        for (String eventId : eventIds) {
+            JsonObject change = new JsonObject();
+            TreeSet<String> removed = toRemove.getOrDefault(eventId, new TreeSet<>());
+            TreeSet<String> added = toAdd.getOrDefault(eventId, new TreeSet<>());
+            if (!removed.isEmpty()) {
+                JsonArray removeArray = new JsonArray();
+                removed.forEach(removeArray::add);
+                change.add("remove", removeArray);
+            }
+            if (!added.isEmpty()) {
+                JsonArray addArray = new JsonArray();
+                added.forEach(addArray::add);
+                change.add("add", addArray);
+            }
+            if (change.size() > 0) changes.add(eventId, change);
+        }
+        return changes;
     }
 
     /**
      * Writes a metadata file keeping the same user changes but updating the stored
      * minecraft_version to the current game version.
      */
-    private static void writeMigratedMetadata(JsonObject changesObj) {
+    private static void writeMigratedMetadata(
+            JsonObject changesObj,
+            TreeSet<String> silentEvents,
+            Map<String, TreeSet<Identifier>> eventLinks) {
         JsonObject meta = new JsonObject();
+        meta.addProperty("format_version", 1);
         meta.addProperty("minecraft_version", SharedConstants.getCurrentVersion().name());
         meta.add("changes", changesObj);
+        meta.add("silent_events", toJsonArray(silentEvents));
+        meta.add("event_links", eventLinksToJson(eventLinks));
 
         Path metaPath = getMetadataPath();
         if (metaPath == null) return;
@@ -258,12 +274,29 @@ public class ResourcePackUtils {
         return Files.exists(filePath) ? filePath : null;
     }
 
-    public static void writeConfig() {
+    public static void writeConfig(MusicGraphSnapshot graph) {
         if (WAS_CREATED) {
             WAS_CREATED = false;
         } else if (RESOURCEPACK_PATH == null) {
             setPaths();
         }
+
+        Map<Identifier, EventDefinition> definitions = new HashMap<>();
+        MUSIC_BY_EVENT.forEach((eventId, musics) -> {
+            EventDefinition definition = new EventDefinition();
+            for (Music music : musics) definition.sounds.add(music.getIdentifier().toString());
+            for (Identifier linked : EVENTS_OF_EVENT.getOrDefault(eventId, new HashSet<>())) {
+                definition.events.add(linked);
+            }
+            definition.explicitSilence = SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.contains(eventId);
+
+            boolean unconfiguredSynthetic = MusicVersionProfile.current().isSyntheticEvent(eventId)
+                    && definition.sounds.isEmpty()
+                    && definition.events.isEmpty()
+                    && !definition.explicitSilence;
+            if (!unconfiguredSynthetic) definitions.put(eventId, definition);
+        });
+        applyPortableProjection(definitions, graph);
 
         // Build sorted sound event map: namespace -> sorted event path -> JsonObject
         Map<String, TreeMap<String, JsonObject>> sortedByNamespace = new HashMap<>();
@@ -271,35 +304,21 @@ public class ResourcePackUtils {
             sortedByNamespace.put(namespace, new TreeMap<>());
         }
 
-        MUSIC_BY_EVENT.forEach((Identifier eventId, HashSet<Music> musics) -> {
-            // Sort sound names for deterministic output
-            List<String> soundNames = new ArrayList<>();
-            for (Music music : musics) {
-                soundNames.add(music.getIdentifier().toString());
-            }
-            soundNames.sort(String::compareTo);
-
+        definitions.forEach((eventId, definition) -> {
             JsonArray sounds = new JsonArray();
-            for (String name : soundNames) {
+            for (String name : definition.sounds) {
                 JsonObject fileSound = new JsonObject();
                 fileSound.addProperty("name", name);
                 fileSound.addProperty("stream", true);
                 sounds.add(fileSound);
             }
 
-            HashSet<Identifier> events = EVENTS_OF_EVENT.get(eventId);
-            if (events != null) {
-                List<String> eventNames = new ArrayList<>();
-                for (Identifier otherId : events) {
-                    eventNames.add(otherId.getPath());
-                }
-                eventNames.sort(String::compareTo);
-                for (String name : eventNames) {
-                    JsonObject eventSound = new JsonObject();
-                    eventSound.addProperty("name", name);
-                    eventSound.addProperty("type", "event");
-                    sounds.add(eventSound);
-                }
+            for (Identifier linked : definition.events) {
+                JsonObject eventSound = new JsonObject();
+                eventSound.addProperty("name", linked.getNamespace().equals(eventId.getNamespace())
+                        ? linked.getPath() : linked.toString());
+                eventSound.addProperty("type", "event");
+                sounds.add(eventSound);
             }
 
             JsonObject soundEvent = new JsonObject();
@@ -334,6 +353,227 @@ public class ResourcePackUtils {
         }
 
         writeMetadata();
+        writeGraphConfig(graph);
+    }
+
+    private static void writeGraphConfig(MusicGraphSnapshot graph) {
+        JsonObject document = new JsonObject();
+        document.addProperty("schemaVersion", MusicGraphManager.SCHEMA_VERSION);
+        JsonObject nodes = new JsonObject();
+        graph.nodes().forEach((id, node) -> {
+            JsonObject value = new JsonObject();
+            if (node.options().parentMix() != com.github.charlyb01.music_control.api.ParentMix.EXCLUSIVE) {
+                value.addProperty("parentMix", node.options().parentMix().name().toLowerCase(Locale.ROOT));
+            }
+            if (node.options().whenEmpty() != com.github.charlyb01.music_control.api.EmptyBehavior.VANILLA) {
+                value.addProperty("whenEmpty", node.options().whenEmpty().name().toLowerCase(Locale.ROOT));
+            }
+            if (!node.parents().isEmpty()) {
+                JsonArray parents = new JsonArray();
+                node.parents().stream().sorted().forEach(parent -> parents.add(parent.toString()));
+                value.add("parents", parents);
+            }
+            nodes.add(id.toString(), value);
+        });
+        document.add("nodes", nodes);
+
+        JsonObject biomes = new JsonObject();
+        graph.biomeBindings().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> biomes.addProperty(entry.getKey().toString(), entry.getValue().toString()));
+        document.add("biomes", biomes);
+        JsonObject dimensions = new JsonObject();
+        graph.dimensionBindings().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> dimensions.addProperty(
+                        entry.getKey().toString(), entry.getValue().toString()));
+        document.add("dimensions", dimensions);
+        JsonArray hidden = new JsonArray();
+        graph.hiddenEvents().stream().sorted()
+                .forEach(event -> hidden.add(event.toString()));
+        document.add("hiddenEvents", hidden);
+
+        if (ASSETS_PATH == null) return;
+        Path graphPath = ASSETS_PATH.resolve("music_control")
+                .resolve("music_control/music_graph/user.json");
+        try {
+            Files.createDirectories(graphPath.getParent());
+            try (PrintWriter out = new PrintWriter(new FileWriter(graphPath.toFile()))) {
+                out.write(GSON.toJson(document));
+                out.flush();
+            }
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    /**
+     * Restores the logical (pre-projection) contents of portable parent events
+     * after the generated resource pack has been loaded. Without this step, a
+     * later save would treat the standalone compatibility union as a direct
+     * parent edit and removed child tracks could become sticky.
+     */
+    public static void restoreLogicalPortableEvents() {
+        Path metadataPath = getExistingMetadataPath();
+        if (metadataPath == null) return;
+        JsonObject metadata;
+        try (FileReader reader = new FileReader(metadataPath.toFile())) {
+            metadata = GSON.fromJson(reader, JsonObject.class);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            return;
+        }
+        if (metadata == null || !metadata.has("changes")) return;
+
+        JsonObject changes = metadata.getAsJsonObject("changes");
+        JsonObject links = metadata.has("event_links")
+                ? metadata.getAsJsonObject("event_links") : new JsonObject();
+        HashSet<Identifier> silent = new HashSet<>();
+        if (metadata.has("silent_events")) {
+            for (JsonElement value : metadata.getAsJsonArray("silent_events")) {
+                Identifier id = Identifier.tryParse(value.getAsString());
+                if (id != null) silent.add(id);
+            }
+        }
+
+        Map<String, TreeMap<String, TreeSet<String>>> vanillaByNamespace = new HashMap<>();
+        for (Identifier parent : MusicVersionProfile.current().portableEvents().keySet()) {
+            TreeMap<String, TreeSet<String>> vanilla = vanillaByNamespace.computeIfAbsent(
+                    parent.getNamespace(), ResourcePackUtils::loadVanillaSounds);
+            TreeSet<String> logicalSounds = new TreeSet<>(
+                    vanilla.getOrDefault(parent.toString(), new TreeSet<>()));
+            JsonObject change = changes.has(parent.toString())
+                    ? changes.getAsJsonObject(parent.toString()) : null;
+            if (change != null && change.has("remove")) {
+                for (JsonElement value : change.getAsJsonArray("remove")) {
+                    logicalSounds.remove(value.getAsString());
+                }
+            }
+            if (change != null && change.has("add")) {
+                for (JsonElement value : change.getAsJsonArray("add")) {
+                    logicalSounds.add(value.getAsString());
+                }
+            }
+
+            HashSet<Music> pool = MUSIC_BY_EVENT.computeIfAbsent(parent, ignored -> new HashSet<>());
+            for (Music music : new HashSet<>(pool)) music.getEvents().remove(parent);
+            pool.clear();
+            HashSet<Music> allMusic = Music.MUSIC_BY_NAMESPACE.get(Music.ALL_MUSICS);
+            if (allMusic != null) {
+                for (Music music : allMusic) {
+                    if (logicalSounds.contains(music.getIdentifier().toString())) music.addEvent(parent);
+                }
+            }
+
+            if (links.has(parent.toString())) {
+                HashSet<Identifier> parentLinks = new HashSet<>();
+                for (JsonElement value : links.getAsJsonArray(parent.toString())) {
+                    Identifier linked = Identifier.tryParse(value.getAsString());
+                    if (linked != null) parentLinks.add(linked);
+                }
+                if (parentLinks.isEmpty()) EVENTS_OF_EVENT.remove(parent);
+                else EVENTS_OF_EVENT.put(parent, parentLinks);
+            } else {
+                EVENTS_OF_EVENT.remove(parent);
+            }
+
+            if (silent.contains(parent)) SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.add(parent);
+            else SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.remove(parent);
+        }
+    }
+
+    /**
+     * Projects fine-grained synthetic biome events onto their native parent
+     * events. The generated pack therefore remains useful without the mod,
+     * while the synthetic entries remain available for exact routing with it.
+     */
+    private static void applyPortableProjection(
+            Map<Identifier, EventDefinition> definitions,
+            MusicGraphSnapshot graph) {
+        MusicVersionProfile profile = MusicVersionProfile.current();
+        for (Map.Entry<Identifier, MusicVersionProfile.PortableEventPolicy> portable
+                : profile.portableEvents().entrySet()) {
+            Identifier parent = portable.getKey();
+            EventDefinition existing = definitions.get(parent);
+            if (existing != null && existing.explicitSilence) continue;
+
+            EventDefinition projected = new EventDefinition();
+            if (portable.getValue().includeBase()) {
+                projected.sounds.addAll(resolveDefinitionSounds(parent, definitions, new HashSet<>()));
+            }
+            TreeSet<Identifier> members = new TreeSet<>();
+            graph.nodes().forEach((nodeId, node) -> {
+                if (node.parents().contains(parent)) members.add(nodeId);
+            });
+            for (Identifier member : members) {
+                EventDefinition child = definitions.get(member);
+                if (child == null || child.explicitSilence) continue;
+                projected.sounds.addAll(resolveDefinitionSounds(member, definitions, new HashSet<>()));
+            }
+            definitions.put(parent, projected);
+        }
+    }
+
+    private static TreeSet<String> resolveDefinitionSounds(
+            Identifier event,
+            Map<Identifier, EventDefinition> definitions,
+            HashSet<Identifier> visited) {
+        TreeSet<String> result = new TreeSet<>();
+        if (!visited.add(event)) return result;
+        EventDefinition definition = definitions.get(event);
+        if (definition == null || definition.explicitSilence) return result;
+        result.addAll(definition.sounds);
+        for (Identifier linked : definition.events) {
+            result.addAll(resolveDefinitionSounds(linked, definitions, visited));
+        }
+        return result;
+    }
+
+    private static final class EventDefinition {
+        private final TreeSet<String> sounds = new TreeSet<>();
+        private final TreeSet<Identifier> events = new TreeSet<>();
+        private boolean explicitSilence;
+    }
+
+    private static void writeDefinitions(Map<Identifier, EventDefinition> definitions) {
+        Map<String, TreeMap<String, JsonObject>> byNamespace = new HashMap<>();
+        for (String namespace : NAMESPACES) byNamespace.put(namespace, new TreeMap<>());
+        for (Map.Entry<Identifier, EventDefinition> entry : definitions.entrySet()) {
+            Identifier eventId = entry.getKey();
+            TreeMap<String, JsonObject> namespaceEvents = byNamespace.get(eventId.getNamespace());
+            if (namespaceEvents == null) continue;
+            JsonArray sounds = new JsonArray();
+            for (String name : entry.getValue().sounds) {
+                JsonObject sound = new JsonObject();
+                sound.addProperty("name", name);
+                sound.addProperty("stream", true);
+                sounds.add(sound);
+            }
+            for (Identifier linked : entry.getValue().events) {
+                JsonObject sound = new JsonObject();
+                sound.addProperty("name", linked.getNamespace().equals(eventId.getNamespace())
+                        ? linked.getPath() : linked.toString());
+                sound.addProperty("type", "event");
+                sounds.add(sound);
+            }
+            JsonObject event = new JsonObject();
+            event.addProperty("category", "music");
+            event.addProperty("replace", true);
+            event.add("sounds", sounds);
+            namespaceEvents.put(eventId.getPath(), event);
+        }
+        for (Map.Entry<String, TreeMap<String, JsonObject>> namespace : byNamespace.entrySet()) {
+            Path soundPath = getSoundPath(namespace.getKey());
+            if (soundPath == null) continue;
+            JsonObject root = new JsonObject();
+            namespace.getValue().forEach(root::add);
+            try (PrintWriter out = new PrintWriter(new FileWriter(soundPath.toFile()))) {
+                out.write(GSON.toJson(root));
+                out.flush();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -406,12 +646,23 @@ public class ResourcePackUtils {
 
         // Build metadata document
         JsonObject meta = new JsonObject();
+        meta.addProperty("format_version", 1);
         meta.addProperty("minecraft_version", SharedConstants.getCurrentVersion().name());
         JsonObject changesObj = new JsonObject();
         for (Map.Entry<String, JsonObject> entry : changes.entrySet()) {
             changesObj.add(entry.getKey(), entry.getValue());
         }
         meta.add("changes", changesObj);
+
+        TreeSet<String> silentEvents = new TreeSet<>();
+        SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.forEach(event -> silentEvents.add(event.toString()));
+        meta.add("silent_events", toJsonArray(silentEvents));
+
+        TreeMap<String, TreeSet<Identifier>> eventLinks = new TreeMap<>();
+        EVENTS_OF_EVENT.forEach((event, links) -> {
+            if (!links.isEmpty()) eventLinks.put(event.toString(), new TreeSet<>(links));
+        });
+        meta.add("event_links", eventLinksToJson(eventLinks));
 
         Path metaPath = getMetadataPath();
         if (metaPath == null) return;
@@ -421,6 +672,22 @@ public class ResourcePackUtils {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static JsonArray toJsonArray(Iterable<String> values) {
+        JsonArray array = new JsonArray();
+        values.forEach(array::add);
+        return array;
+    }
+
+    private static JsonObject eventLinksToJson(Map<String, TreeSet<Identifier>> eventLinks) {
+        JsonObject object = new JsonObject();
+        eventLinks.forEach((event, links) -> {
+            JsonArray values = new JsonArray();
+            links.forEach(link -> values.add(link.toString()));
+            object.add(event, values);
+        });
+        return object;
     }
 
     /**
@@ -455,7 +722,6 @@ public class ResourcePackUtils {
                 if (json == null) return result;
                 for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
                     if (!entry.getKey().contains("music")) continue;
-                    if (BLACK_LISTED_EVENTS.contains(Identifier.withDefaultNamespace(entry.getKey()))) continue;
                     String eventId = namespace + ":" + entry.getKey();
                     TreeSet<String> sounds = getSoundStrings(namespace, entry);
                     result.put(eventId, sounds);

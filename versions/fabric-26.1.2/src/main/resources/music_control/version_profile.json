@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "minecraftVersion": "26.1.2",
+  "events": {
+    "player_flying": "minecraft:music.misc.flying",
+    "player_driving": "minecraft:music.misc.driving",
+    "player_riding": "minecraft:music.misc.riding",
+    "time_night": "minecraft:music.misc.night",
+    "weather_rain": "minecraft:music.misc.rain",
+    "weather_thunder": "minecraft:music.misc.thunder",
+    "overworld": "minecraft:music.game",
+    "creative": "minecraft:music.creative",
+    "nether": "minecraft:music.nether",
+    "end": "minecraft:music.end"
+  },
+  "syntheticEvents": [
+    "minecraft:music.misc.flying",
+    "minecraft:music.misc.driving",
+    "minecraft:music.misc.riding",
+    "minecraft:music.misc.night",
+    "minecraft:music.misc.rain",
+    "minecraft:music.misc.thunder",
+    "minecraft:music.nether"
+  ],
+  "nodes": {
+    "minecraft:music.misc.flying": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.misc.driving": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.misc.riding": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.misc.night": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.misc.rain": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.misc.thunder": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.game": {},
+    "minecraft:music.creative": {},
+    "minecraft:music.nether": {
+      "parentMix": "proportional"
+    },
+    "minecraft:music.end": {},
+    "minecraft:music.overworld.forest": {},
+    "minecraft:music.overworld.old_growth_taiga": {},
+    "minecraft:music.overworld.swamp": {},
+    "minecraft:music.overworld.badlands": {},
+    "minecraft:music.overworld.snowy_plains": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.ice_spikes": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.snowy_taiga": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.snowy_beach": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.windswept_hills": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.windswept_gravelly_hills": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.windswept_forest": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.taiga": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.old_growth_pine_taiga": {
+      "parents": [
+        "minecraft:music.overworld.old_growth_taiga"
+      ]
+    },
+    "minecraft:music.overworld.old_growth_spruce_taiga": {
+      "parents": [
+        "minecraft:music.overworld.old_growth_taiga"
+      ]
+    },
+    "minecraft:music.overworld.stony_shore": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.plains": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.sunflower_plains": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.birch_forest": {
+      "parents": [
+        "minecraft:music.overworld.forest"
+      ]
+    },
+    "minecraft:music.overworld.old_growth_birch_forest": {
+      "parents": [
+        "minecraft:music.overworld.forest"
+      ]
+    },
+    "minecraft:music.overworld.dark_forest": {
+      "parents": [
+        "minecraft:music.overworld.forest"
+      ]
+    },
+    "minecraft:music.overworld.pale_garden": {},
+    "minecraft:music.overworld.mangrove_swamp": {
+      "parents": [
+        "minecraft:music.overworld.swamp"
+      ]
+    },
+    "minecraft:music.overworld.beach": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.mushroom_fields": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.savanna": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.savanna_plateau": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.windswept_savanna": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.wooded_badlands": {
+      "parents": [
+        "minecraft:music.overworld.badlands"
+      ]
+    },
+    "minecraft:music.overworld.eroded_badlands": {
+      "parents": [
+        "minecraft:music.overworld.badlands"
+      ]
+    },
+    "minecraft:music.overworld.river": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.frozen_river": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.warm_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.lukewarm_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.deep_lukewarm_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.deep_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.cold_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.deep_cold_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.frozen_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.overworld.deep_frozen_ocean": {
+      "parents": [
+        "minecraft:music.game"
+      ]
+    },
+    "minecraft:music.end.the_end": {
+      "parents": [
+        "minecraft:music.end"
+      ]
+    },
+    "minecraft:music.end.end_highlands": {
+      "parents": [
+        "minecraft:music.end"
+      ]
+    },
+    "minecraft:music.end.end_midlands": {
+      "parents": [
+        "minecraft:music.end"
+      ]
+    },
+    "minecraft:music.end.small_end_islands": {
+      "parents": [
+        "minecraft:music.end"
+      ]
+    },
+    "minecraft:music.end.end_barrens": {
+      "parents": [
+        "minecraft:music.end"
+      ]
+    }
+  },
+  "biomes": {
+    "minecraft:snowy_plains": "minecraft:music.overworld.snowy_plains",
+    "minecraft:ice_spikes": "minecraft:music.overworld.ice_spikes",
+    "minecraft:snowy_taiga": "minecraft:music.overworld.snowy_taiga",
+    "minecraft:snowy_beach": "minecraft:music.overworld.snowy_beach",
+    "minecraft:windswept_hills": "minecraft:music.overworld.windswept_hills",
+    "minecraft:windswept_gravelly_hills": "minecraft:music.overworld.windswept_gravelly_hills",
+    "minecraft:windswept_forest": "minecraft:music.overworld.windswept_forest",
+    "minecraft:taiga": "minecraft:music.overworld.taiga",
+    "minecraft:old_growth_pine_taiga": "minecraft:music.overworld.old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga": "minecraft:music.overworld.old_growth_spruce_taiga",
+    "minecraft:stony_shore": "minecraft:music.overworld.stony_shore",
+    "minecraft:plains": "minecraft:music.overworld.plains",
+    "minecraft:sunflower_plains": "minecraft:music.overworld.sunflower_plains",
+    "minecraft:birch_forest": "minecraft:music.overworld.birch_forest",
+    "minecraft:old_growth_birch_forest": "minecraft:music.overworld.old_growth_birch_forest",
+    "minecraft:dark_forest": "minecraft:music.overworld.dark_forest",
+    "minecraft:pale_garden": "minecraft:music.overworld.pale_garden",
+    "minecraft:mangrove_swamp": "minecraft:music.overworld.mangrove_swamp",
+    "minecraft:beach": "minecraft:music.overworld.beach",
+    "minecraft:mushroom_fields": "minecraft:music.overworld.mushroom_fields",
+    "minecraft:savanna": "minecraft:music.overworld.savanna",
+    "minecraft:savanna_plateau": "minecraft:music.overworld.savanna_plateau",
+    "minecraft:windswept_savanna": "minecraft:music.overworld.windswept_savanna",
+    "minecraft:wooded_badlands": "minecraft:music.overworld.wooded_badlands",
+    "minecraft:eroded_badlands": "minecraft:music.overworld.eroded_badlands",
+    "minecraft:river": "minecraft:music.overworld.river",
+    "minecraft:frozen_river": "minecraft:music.overworld.frozen_river",
+    "minecraft:warm_ocean": "minecraft:music.overworld.warm_ocean",
+    "minecraft:lukewarm_ocean": "minecraft:music.overworld.lukewarm_ocean",
+    "minecraft:deep_lukewarm_ocean": "minecraft:music.overworld.deep_lukewarm_ocean",
+    "minecraft:ocean": "minecraft:music.overworld.ocean",
+    "minecraft:deep_ocean": "minecraft:music.overworld.deep_ocean",
+    "minecraft:cold_ocean": "minecraft:music.overworld.cold_ocean",
+    "minecraft:deep_cold_ocean": "minecraft:music.overworld.deep_cold_ocean",
+    "minecraft:frozen_ocean": "minecraft:music.overworld.frozen_ocean",
+    "minecraft:deep_frozen_ocean": "minecraft:music.overworld.deep_frozen_ocean",
+    "minecraft:the_end": "minecraft:music.end.the_end",
+    "minecraft:end_highlands": "minecraft:music.end.end_highlands",
+    "minecraft:end_midlands": "minecraft:music.end.end_midlands",
+    "minecraft:small_end_islands": "minecraft:music.end.small_end_islands",
+    "minecraft:end_barrens": "minecraft:music.end.end_barrens"
+  },
+  "dimensions": {
+    "minecraft:the_nether": "minecraft:music.nether"
+  },
+  "portableEvents": {
+    "minecraft:music.game": {
+      "includeBase": true
+    },
+    "minecraft:music.overworld.forest": {
+      "includeBase": true
+    },
+    "minecraft:music.overworld.old_growth_taiga": {
+      "includeBase": true
+    },
+    "minecraft:music.overworld.swamp": {
+      "includeBase": true
+    },
+    "minecraft:music.overworld.badlands": {
+      "includeBase": true
+    },
+    "minecraft:music.end": {
+      "includeBase": true
+    }
+  },
+  "hiddenEvents": [
+    "minecraft:music.overworld.old_growth_taiga"
+  ]
+}

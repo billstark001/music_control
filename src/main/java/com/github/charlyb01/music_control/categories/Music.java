@@ -1,9 +1,9 @@
 package com.github.charlyb01.music_control.categories;
 
+import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -13,12 +13,11 @@ public class Music implements Comparable<Music> {
     public final static String ALL_MUSIC_DISCS = "disc";
     public final static String DEFAULT_MUSICS = "default";
 
-    public final static Identifier EMPTY_MUSIC_ID = SoundManager.EMPTY_SOUND.getLocation();
+    public final static Identifier EMPTY_MUSIC_ID = Identifier.withDefaultNamespace("empty");
     public final static String EMPTY_MUSIC = EMPTY_MUSIC_ID.toString();
 
     public final static HashMap<String, HashSet<Music>> MUSIC_BY_NAMESPACE = new HashMap<>();
     public final static HashSet<Identifier> EVENTS = new HashSet<>();
-    public final static HashSet<Identifier> BLACK_LISTED_EVENTS = new HashSet<>(List.of(Identifier.withDefaultNamespace("music.overworld.old_growth_taiga")));
     public final static HashMap<Identifier, HashSet<Music>> MUSIC_BY_EVENT = new HashMap<>();
     public final static HashMap<Identifier, HashSet<Identifier>> EVENTS_OF_EVENT = new HashMap<>();
     public final static Comparator<Identifier> TRANSLATED_ORDER = (Identifier a, Identifier b) ->
@@ -53,6 +52,7 @@ public class Music implements Comparable<Music> {
         if (MUSIC_BY_EVENT.containsKey(event)) {
             MUSIC_BY_EVENT.get(event).add(this);
             this.events.add(event);
+            SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.remove(event);
         }
     }
 
@@ -60,6 +60,10 @@ public class Music implements Comparable<Music> {
         if (MUSIC_BY_EVENT.containsKey(event)) {
             MUSIC_BY_EVENT.get(event).remove(this);
             this.events.remove(event);
+            if (MUSIC_BY_EVENT.get(event).isEmpty()
+                    && EVENTS_OF_EVENT.getOrDefault(event, new HashSet<>()).isEmpty()) {
+                SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.add(event);
+            }
         }
     }
 
@@ -89,6 +93,9 @@ public class Music implements Comparable<Music> {
             TRANSLATION_CACHE.put(identifier, Component.translatable(
                     MusicTranslationKeys.fromSound(identifier)));
 
+        } else if (SoundEventRegistry.NAME_BIOME_MAP.containsKey(identifier)) {
+            TRANSLATION_CACHE.put(identifier, Component.translatable(
+                    "biome." + identifier.getNamespace() + "." + path));
         // Get official biome translation for biomes' music
         } else if (MusicIdentifier.isBiome(identifier)) {
             TRANSLATION_CACHE.put(identifier, Component.translatable(
