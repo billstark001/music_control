@@ -11,7 +11,8 @@ directly with keybinds.
 
 Last but not least, you can completely customize which music plays when with a new GUI *(beta)*. In this music panel,
 you can select any music or sound event to play it. You can also configure for each music, in which sound events it can
-be played, and vice versa.
+be played, and vice versa. The event-graph editor can additionally define inheritance, empty-pool behavior, and
+biome or dimension bindings without hard-coding those choices into the mod.
 
 ## FAQ
 
@@ -23,6 +24,15 @@ be played, and vice versa.
   directly creating issues on the GitHub
 
 ## Development
+
+The current source tree targets Fabric for Minecraft 1.21.11, 26.1.2, and 26.2. Run the complete build with:
+
+```powershell
+.\gradlew.bat buildAll --no-parallel
+```
+
+This runs each target's tests and build, then places exactly one runtime JAR per target in `build/modrinth/`. The
+per-target runtime and sources JARs remain available below `versions/fabric-<minecraft>/build/libs/`.
 
 Gradle generates a separate IntelliJ IDEA client and server run configuration for every supported Minecraft target.
 All configurations intentionally share the root `run/` directory, while their module, Loom launch file, and Java
@@ -45,5 +55,7 @@ When adding or removing a Minecraft target:
 3. Update the CI and release matrices in `.github/workflows`.
 4. Reload the Gradle project, or run `syncIdeaRunConfigurations`.
 
-The aggregate `buildAll` and `checkAll` tasks derive their project lists from `targets`, so they do not need separate
-updates when the target list changes.
+The aggregate `buildAll`, `collectModrinthArtifacts`, and `checkAll` tasks derive their project lists from `targets`, so
+they do not need separate updates when the target list changes. See [META_FORMAT.md](META_FORMAT.md) for resource-pack
+formats and [DEVELOPER_ARCHITECTURE.md](DEVELOPER_ARCHITECTURE.md) for the event graph, playback state machine, and
+nested dependency layout.

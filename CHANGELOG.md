@@ -6,9 +6,36 @@
 
 ## v1.10.0
 ### Versions
+* Add Fabric support for Minecraft 26.1.2 and 26.2 alongside 1.21.11
+* Build every supported Minecraft version from the main branch with separate version-specific source sets
 * Use Minecraft's built-in translations for background music and jukebox songs instead of maintaining duplicate track names
 * Normalize background-music and jukebox-song keys in Minecraft's now-playing toast
 * Add Traditional Chinese (Taiwan) translation
+* Discover playable music from the active sound manager while loading biome events, fallback events, and exclusions from a profile bundled with each Minecraft target
+* Route biome music native-first: active data-pack music remains authoritative, while configured synthetic biome events opt in only when they contain music
+* Preserve explicit empty sound events as intentional silence without treating unconfigured synthetic events as silent
+* Generate portable native-parent projections so the saved resource pack retains a close approximation when Music Control is removed
+* Resolve all automatic music through a validated event DAG with independent parent-mix and empty-pool behavior
+* Resolve graph rules for the music event selected by Minecraft even when it has no explicit biome binding
+* Let explicit tracks and non-default playlists override environmental graph silence
+* Separate visible playback history from the bounded no-repeat window so biome changes and resource reloads do not erase history
+* Replace the biome-switch toggle with always, incompatible-only, and never replacement modes
+* Preserve Minecraft's built-in music-frequency choices and remove the imprecise duplicate maximum-delay control
+* Keep sound/event edits transactional until Save, preventing unsaved UI clicks from changing playback
+* Add transactional in-game graph controls for node behavior, parent edges, biome bindings, and discovered dimension bindings
+* Clarify configuration modes and Save-and-Reload behavior, and raise the GUI size defaults for the denser graph editor
+* Replace button stacks with compact searchable list boxes and opaque popup selects, and promote track editing and the event graph to separate top-level tabs
+
+### Development
+* Centralize shared gameplay, GUI, and mixin code in the root source set, leaving only narrow compatibility adapters in each version directory
+* Filter configured biome music through the biomes and sound events available in the running Minecraft version
+* Move nodes, edges, biome/dimension bindings, hidden events, and portable parent mappings into the per-target JSON profile (schema v1)
+* Allow resource packs to patch graph nodes and biome bindings, with atomic validation and a minimal registration API for other mods
+* Add a CI matrix with explicit test and build phases for all three supported Minecraft versions
+* Make `buildAll` collect one runtime JAR per supported version in `build/modrinth` for publication
+* Add tag-driven GitHub Releases containing one runtime JAR for each supported Minecraft version
+* Validate release tags against the project version and use the matching changelog section as release notes
+* Document the event graph, runtime activation order, audio state machine, history model, and nested LibGui packaging
 
 ## v1.9.4
 ### Fixes
