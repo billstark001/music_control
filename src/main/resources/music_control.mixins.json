@@ -12,7 +12,7 @@
     "BiomeKeysMixin",
     "GameOptionsMixin",
     "MinecraftClientMixin",
-    "MusicFrequencyMixin",
+    "MusicFrequencyAccess",
     "MusicTrackerMixin",
     "SoundListMixin",
     "SoundManagerMixin",
