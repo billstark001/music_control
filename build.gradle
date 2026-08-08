@@ -66,6 +66,23 @@ tasks.register("buildAll") {
     dependsOn(fabricProjectPaths.collect { "${it}:build" })
 }
 
+tasks.register("collectModrinthArtifacts", Sync) {
+    group = "build"
+    description = "Collects one release jar per supported target for Modrinth."
+    dependsOn(fabricProjectPaths.collect { "${it}:build" })
+    into(layout.buildDirectory.dir("modrinth"))
+
+    targets.each { targetName, target ->
+        from(project(":versions:fabric-${targetName}").layout.buildDirectory.dir("libs")) {
+            include "${archives_base_name}-${mod_version}+${target.minecraft}-fabric.jar"
+        }
+    }
+}
+
+tasks.named("buildAll") {
+    dependsOn("collectModrinthArtifacts")
+}
+
 tasks.register("checkAll") {
     group = "verification"
     description = "Checks every supported Fabric target."

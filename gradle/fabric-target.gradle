@@ -156,6 +156,7 @@ tasks.withType(Javadoc).configureEach {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     systemProperty "file.encoding", "UTF-8"
+    systemProperty "music_control.minecraft_target", target.minecraft
 }
 
 java {

@@ -47,8 +47,6 @@ jobs:
         shell: bash
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            versions/fabric-1.21.11/build/libs/music_control-*+1.21.11-fabric.jar \
-            versions/fabric-26.1.2/build/libs/music_control-*+26.1.2-fabric.jar \
-            versions/fabric-26.2/build/libs/music_control-*+26.2-fabric.jar \
+            build/modrinth/*.jar \
             --title "Music Control $GITHUB_REF_NAME" \
             --notes-file release-notes.md

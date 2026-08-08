@@ -36,7 +36,10 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.target.java }}
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew :${{ matrix.target.module }}:build --stacktrace
+      - name: Test
+        run: ./gradlew :${{ matrix.target.module }}:test --stacktrace
+      - name: Build
+        run: ./gradlew :${{ matrix.target.module }}:build -x test --stacktrace
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target.artifact }}
