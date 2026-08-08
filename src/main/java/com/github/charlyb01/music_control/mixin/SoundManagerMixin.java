@@ -2,6 +2,8 @@ package com.github.charlyb01.music_control.mixin;
 
 import com.github.charlyb01.music_control.categories.Music;
 import com.github.charlyb01.music_control.client.MusicControlClient;
+import com.github.charlyb01.music_control.client.MusicGraphManager;
+import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.github.charlyb01.music_control.imixin.PauseResumeIMixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -25,6 +27,8 @@ public class SoundManagerMixin implements PauseResumeIMixin {
     @Inject(method = "prepare(Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)Lnet/minecraft/client/sounds/SoundManager$Preparations;", at = @At("HEAD"))
     private void resetEventsOfEvent(ResourceManager resourceManager, ProfilerFiller profiler, CallbackInfoReturnable<SoundManager.Preparations> cir) {
         Music.EVENTS_OF_EVENT.clear();
+        SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.clear();
+        MusicGraphManager.reload(resourceManager);
     }
 
     @Inject(method = "resume", at = @At("TAIL"))

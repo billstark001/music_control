@@ -1,98 +1,70 @@
 package com.github.charlyb01.music_control.categories;
 
 import com.github.charlyb01.music_control.client.MusicControlClient;
+import com.github.charlyb01.music_control.client.MusicGraphManager;
+import com.github.charlyb01.music_control.client.MusicGraphSnapshot;
+import com.github.charlyb01.music_control.client.MusicVersionProfile;
 import com.github.charlyb01.music_control.client.SoundEventRegistry;
-import com.github.charlyb01.music_control.config.DimensionEventChance;
-import com.github.charlyb01.music_control.config.MiscEventChance;
+import com.github.charlyb01.music_control.config.BiomeSwitchBehavior;
 import com.github.charlyb01.music_control.config.ModConfig;
 import java.util.ArrayList;
 import java.util.HashSet;
-import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-
-import static com.github.charlyb01.music_control.Utils.isNight;
 import static com.github.charlyb01.music_control.categories.Music.*;
 
 public class MusicIdentifier {
-    // Cache list to avoid its recomputation each tick
-    private static HashSet<Music> nextEventList = new HashSet<>();
-    private static Identifier nextEventId = null;
-
     private MusicIdentifier() {}
 
-    public static HashSet<Music> getListFromEvent(final Identifier eventId, final Player player,
-                                                    final Level world, final RandomSource random) {
-        HashSet<Music> musics = new HashSet<>();
-        HashSet<Music> eventMusic = getListFromEvent(eventId);
-        MusicControlClient.isCurrentEventEmpty = eventMusic.isEmpty();
-
-        if (ModConfig.get().general.event.miscEventChance.equals(MiscEventChance.HALF)
-                && random.nextBoolean()) {
-            musics.addAll(eventMusic);
-            addDimensionEvent(musics, world, random);
-            return musics;
+    public record EventMusicSelection(boolean silent, HashSet<Music> pool) {
+        public static EventMusicSelection silence() {
+            return new EventMusicSelection(true, new HashSet<>());
         }
 
-        boolean playerNotNull = player != null;
-
-        if (playerNotNull && player.isFallFlying()) {
-            musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.PLAYER_FLYING)));
+        public static EventMusicSelection playable(HashSet<Music> pool) {
+            return new EventMusicSelection(false, pool);
         }
-        if (playerNotNull && player.isPassenger()) {
-            if (player.getVehicle() instanceof LivingEntity) {
-                musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.PLAYER_RIDING)));
-            } else {
-                musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.PLAYER_DRIVING)));
-            }
-
-        }
-        if (world.dimension() == Level.OVERWORLD) {
-            if (isNight(world)) {
-                musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.TIME_NIGHT)));
-            }
-            if (world.isRaining()) {
-                musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.WEATHER_RAIN)));
-            }
-            if (world.isThundering()) {
-                musics.addAll(getListFromEvent(getFromSoundEvent(SoundEventRegistry.WEATHER_THUNDER)));
-            }
-        }
-
-        if (!ModConfig.get().general.event.miscEventChance.equals(MiscEventChance.PROPORTIONAL)
-                && !musics.isEmpty()) {
-            return musics;
-        }
-
-        musics.addAll(eventMusic);
-        addDimensionEvent(musics, world, random);
-        return musics;
     }
 
-    private static void addDimensionEvent(final HashSet<Music> musics, final Level world, final RandomSource random) {
-        if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.FALLBACK)) return;
-        if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.NEVER)) return;
+    public static EventMusicSelection resolveEventMusic(
+            final Identifier eventId, final RandomSource random) {
+        EventMusicSelection selection = previewEventMusic(eventId, random);
+        MusicControlClient.isCurrentEventEmpty = !selection.silent() && selection.pool().isEmpty();
+        return selection;
+    }
 
-        HashSet<Music> dimensionMusic = getListFromEvent(getDimension(world.dimension()));
-        if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.HALF)) {
-            if (random.nextBoolean()) {
-                return;
-            } else if (!dimensionMusic.isEmpty()){
-                musics.clear();
-            }
+    /** Resolves the active graph pool without mutating playback state. */
+    public static EventMusicSelection previewEventMusic(
+            final Identifier eventId, final RandomSource random) {
+        MusicGraphSnapshot graph = MusicGraphManager.current();
+        Identifier vanillaEvent = SoundEventRegistry.selectedVanillaEvent() != null
+                ? SoundEventRegistry.selectedVanillaEvent() : eventId;
+        HashSet<Music> pool = getListFromEvent(vanillaEvent);
+
+        for (Identifier node : SoundEventRegistry.selectedContextNodes()) {
+            EventMusicSelection selection = applyNode(graph, node, pool, random);
+            if (selection.silent()) return selection;
+            pool = selection.pool();
         }
 
-        musics.addAll(dimensionMusic);
+        return EventMusicSelection.playable(pool);
+    }
+
+    private static EventMusicSelection applyNode(
+            MusicGraphSnapshot graph,
+            Identifier node,
+            HashSet<Music> parentPool,
+            RandomSource random) {
+        if (node == null) return EventMusicSelection.playable(parentPool);
+        MusicGraphSnapshot.PoolSelection selection = graph.resolvePool(node, parentPool, random);
+        return selection.silent()
+                ? EventMusicSelection.silence()
+                : EventMusicSelection.playable(selection.pool());
     }
 
     public static HashSet<Music> getListFromEvent(final Identifier eventId) {
         HashSet<Music> musics = new HashSet<>();
+        if (eventId == null) return musics;
         HashSet<Identifier> checkedEvents = new HashSet<>();
         ArrayList<Identifier> eventsToCheck = new ArrayList<>();
         eventsToCheck.add(eventId);
@@ -100,7 +72,8 @@ public class MusicIdentifier {
             Identifier event = eventsToCheck.removeFirst();
             if (checkedEvents.contains(event)) continue;
 
-            musics.addAll(MUSIC_BY_EVENT.get(event));
+            HashSet<Music> eventMusics = MUSIC_BY_EVENT.get(event);
+            if (eventMusics != null) musics.addAll(eventMusics);
             checkedEvents.add(event);
             if (EVENTS_OF_EVENT.containsKey(event)) {
                 eventsToCheck.addAll(EVENTS_OF_EVENT.get(event));
@@ -111,21 +84,30 @@ public class MusicIdentifier {
     }
 
     public static Identifier getFromList(final HashSet<Music> musics, final RandomSource random) {
+        return getFromList(musics, random, ModConfig.get().general.misc.musicQueue);
+    }
+
+    static Identifier getFromList(
+            final HashSet<Music> musics,
+            final RandomSource random,
+            final int queueLength) {
         if (musics.isEmpty()) return null;
 
         Identifier music;
         int size = musics.size();
 
-        while (MusicCategories.PLAYED_MUSICS.size() >= Math.min(ModConfig.get().general.misc.musicQueue, size)) {
-            MusicCategories.PLAYED_MUSICS.poll();
+        int recentLimit = Math.min(queueLength, size);
+        while (MusicCategories.RECENT_MUSICS.size() >= recentLimit) {
+            MusicCategories.RECENT_MUSICS.poll();
         }
 
         ArrayList<Music> musicList = new ArrayList<>(musics);
         do {
             music = musicList.remove(random.nextInt(size--)).getIdentifier();
-        } while (MusicCategories.PLAYED_MUSICS.contains(music));
+        } while (MusicCategories.RECENT_MUSICS.contains(music));
 
-        MusicCategories.PLAYED_MUSICS.add(music);
+        MusicCategories.RECENT_MUSICS.add(music);
+        MusicCategories.recordHistory(music);
         return music;
     }
 
@@ -138,44 +120,22 @@ public class MusicIdentifier {
         }
     }
 
-    private static Identifier getDimension(final ResourceKey<Level> world) {
-        Identifier eventId;
-        if (world.equals(Level.NETHER)) {
-            eventId = getFromSoundEvent(SoundEventRegistry.NETHER);
-        } else if (world.equals(Level.END)) {
-            eventId = getFromSoundEvent(SoundEvents.MUSIC_END);
-        } else {
-            eventId = getFromSoundEvent(SoundEvents.MUSIC_GAME);
-        }
-        return eventId;
+    private static Identifier profileEvent(MusicVersionProfile.Event event) {
+        return MusicVersionProfile.current().event(event);
     }
 
-    public static Identifier getFallback(final ResourceKey<Level> world, final boolean creative, final RandomSource random) {
-        HashSet<Music> musics = new HashSet<>();
-        if (ModConfig.get().general.event.creativeEventFallback && creative) {
-            musics.addAll(getListFromEvent(getFromSoundEvent(SoundEvents.MUSIC_CREATIVE)));
-        }
+    public static boolean shouldChangeMusic(
+            final BiomeSwitchBehavior behavior,
+            final Identifier eventId,
+            final boolean contextChanged,
+            final RandomSource random) {
+        if (behavior == BiomeSwitchBehavior.NEVER) return false;
+        if (!contextChanged) return false;
+        if (behavior == BiomeSwitchBehavior.ALWAYS) return true;
 
-        if (ModConfig.get().general.event.dimensionEventChance.equals(DimensionEventChance.FALLBACK)) {
-            musics.addAll(getListFromEvent(getDimension(world)));
-        }
-
-        return musics.isEmpty()
-                ? EMPTY_MUSIC_ID
-                : MusicIdentifier.getFromList(musics, random);
-    }
-
-    public static Identifier getFromSoundEvent(final Holder.Reference<SoundEvent> soundEvent) {
-        return soundEvent.value().location();
-    }
-
-    public static boolean shouldChangeMusic(final Identifier eventId) {
-        if (eventId.equals(MusicControlClient.currentEvent)) return false;
-
-        if (!eventId.equals(nextEventId)) {
-            nextEventId = eventId;
-            nextEventList = getListFromEvent(nextEventId);
-        }
+        EventMusicSelection selection = previewEventMusic(eventId, random);
+        if (selection.silent()) return MusicControlClient.currentMusic != null;
+        HashSet<Music> nextEventList = selection.pool();
 
         // If both events are empty, we want to keep the fallback/misc music
         if (nextEventList.isEmpty() && MusicControlClient.isCurrentEventEmpty)
@@ -187,9 +147,9 @@ public class MusicIdentifier {
     }
 
     public static boolean isDimension(final Identifier identifier) {
-        return identifier.equals(getFromSoundEvent(SoundEvents.MUSIC_GAME))
-                || identifier.equals(getFromSoundEvent(SoundEventRegistry.NETHER))
-                || identifier.equals(getFromSoundEvent(SoundEvents.MUSIC_END));
+        return identifier.equals(profileEvent(MusicVersionProfile.Event.OVERWORLD))
+                || identifier.equals(profileEvent(MusicVersionProfile.Event.NETHER))
+                || identifier.equals(profileEvent(MusicVersionProfile.Event.END));
     }
 
     public static boolean isBiome(final Identifier identifier) {

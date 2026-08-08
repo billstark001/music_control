@@ -6,6 +6,9 @@ import com.github.charlyb01.music_control.categories.MusicCategories;
 import com.github.charlyb01.music_control.categories.MusicIdentifier;
 import com.github.charlyb01.music_control.categories.MusicTranslationKeys;
 import com.github.charlyb01.music_control.client.MusicControlClient;
+import com.github.charlyb01.music_control.client.MusicPlaybackPolicy;
+import com.github.charlyb01.music_control.client.MusicVersionProfile;
+import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.github.charlyb01.music_control.config.ModConfig;
 import com.github.charlyb01.music_control.imixin.PauseResumeIMixin;
 import com.github.charlyb01.music_control.imixin.MusicTrackerAccess;
@@ -16,9 +19,11 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.MusicManager;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.Musics;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import org.spongepowered.asm.mixin.Final;
@@ -31,6 +36,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 
 import static com.github.charlyb01.music_control.categories.Music.EMPTY_MUSIC;
 
@@ -106,6 +113,12 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
 
     /** {@code true} after the user has explicitly asked to display the current track. */
     @Unique private boolean displayPrompted = false;
+    /** True while the active graph context is enforcing environmental silence. */
+    @Unique private boolean policySilence = false;
+    /** Event whose explicitly empty pool was deliberately resolved as silence. */
+    @Unique private Identifier silencedEvent = null;
+    /** Vanilla event plus ordered graph layers used for the currently playing track. */
+    @Unique private List<Identifier> playingContext = List.of();
 
     // =========================================================================
     // Injection points
@@ -144,7 +157,11 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
         boolean wasPlaying = this.minecraft.getSoundManager().isActive(this.currentMusic);
         safeStop();
         resolveNextMusic(instance, wasPlaying);
+        releasePolicySilenceForUserPlayback();
         SoundEngine.PlayResult result = startPlayback(instance);
+        if (result == SoundEngine.PlayResult.STARTED) {
+            this.playingContext = SoundEventRegistry.selectedContextSignature();
+        }
         onTrackStart(result);
 
         this.nextSongDelay = Integer.MAX_VALUE;
@@ -167,14 +184,92 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
     private void onTick(CallbackInfo ci) {
         net.minecraft.sounds.Music musicSound = this.minecraft.getSituationalMusic();
 
-        if (MusicControlClient.init && this.minecraft.level != null && musicSound != null) {
-            tickModActive(musicSound);
-            ci.cancel();
+        if (MusicControlClient.init && this.minecraft.level != null) {
+            if (SoundEventRegistry.currentSelectionMode() == SoundEventRegistry.SelectionMode.SILENT
+                    && shouldEnforceGraphSilence()) {
+                tickPolicySilence();
+                ci.cancel();
+            } else {
+                net.minecraft.sounds.Music playbackContext = musicSound;
+                if (playbackContext == null && !shouldEnforceGraphSilence()) {
+                    playbackContext = customPlaybackContext();
+                }
+                exitPolicySilence(playbackContext);
+                resetSilencedEventWhenEnvironmentChanges(playbackContext);
+                if (playbackContext != null) {
+                    tickModActive(playbackContext);
+                    ci.cancel();
+                }
+            }
         }
 
         // State housekeeping runs regardless of vanilla/mod path.
         syncState();
         holdTimerIfPaused();
+    }
+
+    @Unique
+    private void tickPolicySilence() {
+        this.policySilence = true;
+        this.silencedEvent = null;
+        this.nextSongDelay = Integer.MAX_VALUE;
+
+        int fadeTicks = ModConfig.get().general.timer.fadeOutDuration * 20;
+        if (this.currentMusic == null || fadeTicks <= 0) {
+            safeStop();
+            this.currentGain = 0.f;
+        } else {
+            this.currentGain = Math.max(0.f, this.currentGain - 1.f / fadeTicks);
+            if (this.currentGain <= 0.f) safeStop();
+        }
+        this.minecraft.getSoundManager().updateCategoryVolume(SoundSource.MUSIC, this.currentGain);
+    }
+
+    @Unique
+    private boolean shouldEnforceGraphSilence() {
+        return MusicPlaybackPolicy.enforcesGraphSilence(
+                MusicControlClient.currentState, MusicControlClient.currentCategory);
+    }
+
+    /** Supplies timing while a user-owned playlist overrides an empty/silent environment. */
+    @Unique
+    private net.minecraft.sounds.Music customPlaybackContext() {
+        net.minecraft.sounds.Music vanilla = SoundEventRegistry.selectedVanillaMusic();
+        if (vanilla != null) return vanilla;
+        Identifier fallback = MusicVersionProfile.current().event(MusicVersionProfile.Event.OVERWORLD);
+        return Musics.createGameMusic(Holder.direct(SoundEvent.createVariableRangeEvent(fallback)));
+    }
+
+    @Unique
+    private void exitPolicySilence(net.minecraft.sounds.Music musicSound) {
+        if (!this.policySilence) return;
+        this.policySilence = false;
+        MusicControlClient.State owner = MusicControlClient.currentState;
+        resetVolume();
+        if (owner == MusicControlClient.State.CUSTOM) {
+            MusicControlClient.currentState = MusicControlClient.State.CUSTOM;
+        }
+        this.nextSongDelay = getFrequencyDelay(musicSound);
+    }
+
+    @Unique
+    private void releasePolicySilenceForUserPlayback() {
+        if (shouldEnforceGraphSilence()) return;
+        this.policySilence = false;
+        this.currentGain = 1.f;
+        this.minecraft.getSoundManager().updateCategoryVolume(SoundSource.MUSIC, 1.f);
+    }
+
+    @Unique
+    private void resetSilencedEventWhenEnvironmentChanges(net.minecraft.sounds.Music musicSound) {
+        if (this.silencedEvent == null) return;
+        Identifier next = musicSound == null || musicSound.sound() == null
+                ? null : musicSound.sound().value().location();
+        if (!Objects.equals(this.silencedEvent, next)) {
+            this.silencedEvent = null;
+            MusicControlClient.isCurrentEventEmpty = false;
+            this.nextSongDelay = 0;
+        }
     }
 
     @Override
@@ -243,7 +338,7 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
         if (this.currentMusic != null && !this.minecraft.getSoundManager().isActive(this.currentMusic)) {
             this.currentMusic = null;
             ClientCompat.hideNowPlayingToast(this.minecraft);
-            this.nextSongDelay = Math.min(this.nextSongDelay, musicSound.minDelay());
+            this.nextSongDelay = Math.min(this.nextSongDelay, getFrequencyDelay(musicSound));
             // Abort any mid-flight fade; CUSTOM persists across track boundaries.
             if (MusicControlClient.currentState == MusicControlClient.State.FADE_IN
                     || MusicControlClient.currentState == MusicControlClient.State.FADE_OUT) {
@@ -254,9 +349,21 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
         // --- Countdown + play trigger (mirrors vanilla stage 3) ---
         if (!MusicControlClient.isPaused
                 && MusicControlClient.currentState != MusicControlClient.State.FADE_OUT
+                && this.currentMusic == null) {
+            this.nextSongDelay = Math.min(this.nextSongDelay, getFrequencyDelay(musicSound));
+        }
+        if (!MusicControlClient.isPaused
+                && MusicControlClient.currentState != MusicControlClient.State.FADE_OUT
                 && this.currentMusic == null && this.nextSongDelay-- <= 0) {
             this.startPlaying(musicSound); // routed through onPlay()
         }
+    }
+
+    @Unique
+    private int getFrequencyDelay(net.minecraft.sounds.Music music) {
+        MusicManager.MusicFrequency frequency = this.minecraft.options.musicFrequency().get();
+        return ((MusicFrequencyAccess) (Object) frequency)
+                .music_control$getNextSongDelay(music, this.random);
     }
 
     // =========================================================================
@@ -267,14 +374,16 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
      * Returns {@code true} if the current biome/event change warrants a fade
      * transition (only honoured in {@code MINECRAFT} state).
      *
-     * <p>Reads {@code changeMusicOnBiomeSwitch} from config; delegates the
-     * actual "does this event differ enough?" logic to
-     * {@link MusicIdentifier#shouldChangeMusic}.</p>
+     * <p>The three-way setting can retain all music, always replace on an event
+     * change, or retain only tracks in the next graph-resolved pool.</p>
      */
     @Unique
     private boolean requiresBiomeFade(net.minecraft.sounds.Music instance) {
-        if (!ModConfig.get().general.timer.changeMusicOnBiomeSwitch) return false;
-        return MusicIdentifier.shouldChangeMusic(instance.sound().value().location());
+        return MusicIdentifier.shouldChangeMusic(
+                ModConfig.get().general.timer.changeMusicOnBiomeSwitch,
+                instance.sound().value().location(),
+                !this.playingContext.equals(SoundEventRegistry.selectedContextSignature()),
+                this.random);
     }
 
     /**
@@ -376,6 +485,7 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
      */
     @Unique
     private SoundEngine.PlayResult startPlayback(net.minecraft.sounds.Music instance) {
+        if (this.silencedEvent != null) return SoundEngine.PlayResult.NOT_STARTED;
         if (MusicControlClient.currentMusic != null || (instance != null && instance.sound() != null)) {
             this.currentMusic = SimpleSoundInstance.forMusic(
                     MusicControlClient.currentMusic == null
@@ -422,38 +532,46 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
         if (MusicControlClient.musicSelected != null) {
             MusicControlClient.currentMusic = MusicControlClient.musicSelected;
             MusicControlClient.currentState = MusicControlClient.State.CUSTOM;
+            this.silencedEvent = null;
             MusicControlClient.musicSelected = null;
         } else if (MusicControlClient.previousMusic) {
             MusicControlClient.previousMusic = false;
             if (wasPlaying) MusicCategories.PLAYED_MUSICS.pollLast();
             Identifier prev = MusicCategories.PLAYED_MUSICS.peekLast();
-            if (prev != null) MusicControlClient.currentMusic = prev;
+            if (prev != null) {
+                this.silencedEvent = null;
+                MusicControlClient.currentMusic = prev;
+            }
         } else if (MusicControlClient.loopMusic) {
+            if (MusicControlClient.currentState == MusicControlClient.State.CUSTOM) {
+                this.silencedEvent = null;
+            }
             // keep currentMusic as-is
         } else if (MusicControlClient.currentEvent != null
                 && MusicControlClient.currentCategory.equals(Music.DEFAULT_MUSICS)
                 && Music.MUSIC_BY_EVENT.containsKey(MusicControlClient.currentEvent)) {
             resolveEventMusic();
         } else {
+            if (!MusicControlClient.currentCategory.equals(Music.DEFAULT_MUSICS)) {
+                this.silencedEvent = null;
+                MusicControlClient.currentState = MusicControlClient.State.CUSTOM;
+            }
             MusicControlClient.currentMusic = MusicIdentifier.getFromCategory(this.random);
         }
     }
 
-    /**
-     * Picks a track from the event-driven music pool.
-     *
-     * <p>Falls back to {@link MusicIdentifier#getFallback} when the pool for the
-     * current event is empty (e.g. no custom music registered for this biome).</p>
-     */
+    /** Picks a track from the event graph, preserving explicit silence as state. */
     @Unique
     private void resolveEventMusic() {
-        boolean creative = this.minecraft.player != null && this.minecraft.player.isCreative();
-        HashSet<Music> pool = MusicIdentifier.getListFromEvent(
-                MusicControlClient.currentEvent, this.minecraft.player, this.minecraft.level, this.random);
-
-        MusicControlClient.currentMusic = pool.isEmpty() && this.minecraft.level != null
-                ? MusicIdentifier.getFallback(this.minecraft.level.dimension(), creative, this.random)
-                : MusicIdentifier.getFromList(pool, this.random);
+        MusicIdentifier.EventMusicSelection selection = MusicIdentifier.resolveEventMusic(
+                MusicControlClient.currentEvent, this.random);
+        if (selection.silent()) {
+            this.silencedEvent = MusicControlClient.currentEvent;
+            MusicControlClient.currentMusic = null;
+            return;
+        }
+        this.silencedEvent = null;
+        MusicControlClient.currentMusic = MusicIdentifier.getFromList(selection.pool(), this.random);
     }
 
     // =========================================================================
@@ -677,11 +795,14 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
             printPaused();
         } else {
             MusicControlClient.categoryChanged = true;
-            MusicControlClient.currentState = MusicControlClient.State.MINECRAFT;
             MusicCategories.changeCategory(MusicControlClient.nextCategory);
+            MusicControlClient.currentState = MusicControlClient.currentCategory.equals(Music.DEFAULT_MUSICS)
+                    ? MusicControlClient.State.MINECRAFT
+                    : MusicControlClient.State.CUSTOM;
             safeStop();
             net.minecraft.sounds.Music musicSound = this.minecraft.getSituationalMusic();
-            if (musicSound != null) {
+            if (musicSound != null
+                    || !MusicControlClient.currentCategory.equals(Music.DEFAULT_MUSICS)) {
                 this.startPlaying(musicSound);
             } else {
                 this.nextSongDelay = Math.max(this.nextSongDelay, 100);

@@ -11,31 +11,15 @@ public class GeneralConfig implements ConfigData {
     public Timer timer = new Timer();
 
     public static class Timer {
-        @ConfigEntry.Gui.Tooltip(count = 2)
-        @ConfigEntry.BoundedDiscrete(min = 5, max = 1800)
-        public int maxDelay = 300;
         @ConfigEntry.Gui.Tooltip
-        public boolean changeMusicOnBiomeSwitch = true;
+        @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+        public BiomeSwitchBehavior changeMusicOnBiomeSwitch = BiomeSwitchBehavior.IF_INCOMPATIBLE;
         @ConfigEntry.Gui.Tooltip
         @ConfigEntry.BoundedDiscrete(min = 0, max = 10)
         public int fadeOutDuration = 5;
         @ConfigEntry.Gui.Tooltip
         @ConfigEntry.BoundedDiscrete(min = 0, max = 10)
         public int fadeInDuration = 5;
-    }
-
-    @ConfigEntry.Gui.CollapsibleObject
-    public Event event = new Event();
-
-    public static class Event {
-        @ConfigEntry.Gui.Tooltip(count = 3)
-        public boolean creativeEventFallback = true;
-        @ConfigEntry.Gui.Tooltip(count = 4)
-        @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
-        public DimensionEventChance dimensionEventChance = DimensionEventChance.PROPORTIONAL;
-        @ConfigEntry.Gui.Tooltip(count = 3)
-        @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
-        public MiscEventChance miscEventChance = MiscEventChance.PROPORTIONAL;
     }
 
     @ConfigEntry.Gui.CollapsibleObject

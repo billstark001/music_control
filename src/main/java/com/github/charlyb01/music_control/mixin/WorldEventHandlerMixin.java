@@ -21,7 +21,7 @@ public class WorldEventHandlerMixin {
 
         if (MusicControlClient.currentCategory.equals(Music.ALL_MUSICS)
                 || MusicControlClient.currentCategory.equals(Music.ALL_MUSIC_DISCS)) {
-            MusicCategories.PLAYED_MUSICS.add(soundId);
+            MusicCategories.recordHistory(soundId);
         }
 
         return Component.translatable(soundId.toString());

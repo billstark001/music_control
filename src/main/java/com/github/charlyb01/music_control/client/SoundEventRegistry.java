@@ -1,80 +1,192 @@
 package com.github.charlyb01.music_control.client;
 
-import java.util.HashMap;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.Music;
+import net.minecraft.sounds.Musics;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
-public class SoundEventRegistry {
-    public static final HashMap<ResourceKey<Biome>, SoundEvent> BIOME_MUSIC_MAP = new HashMap<>();
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+public final class SoundEventRegistry {
     public static final HashMap<Identifier, ResourceKey<Biome>> NAME_BIOME_MAP = new HashMap<>();
+    public static final Set<Identifier> EXPLICITLY_EMPTY_EVENTS = new HashSet<>();
 
-    public static Holder.Reference<SoundEvent> PLAYER_FLYING = registerReference("music.misc.flying");
-    public static Holder.Reference<SoundEvent> PLAYER_DRIVING = registerReference("music.misc.driving");
-    public static Holder.Reference<SoundEvent> PLAYER_RIDING = registerReference("music.misc.riding");
-    public static Holder.Reference<SoundEvent> TIME_NIGHT = registerReference("music.misc.night");
-    public static Holder.Reference<SoundEvent> WEATHER_RAIN = registerReference("music.misc.rain");
-    public static Holder.Reference<SoundEvent> WEATHER_THUNDER = registerReference("music.misc.thunder");
+    public enum SelectionMode {
+        VANILLA,
+        OVERRIDE,
+        SILENT
+    }
 
-    public static Holder.Reference<SoundEvent> SNOWY_PLAINS = registerReference("music.overworld.snowy_plains");
-    public static Holder.Reference<SoundEvent> ICE_SPIKES = registerReference("music.overworld.ice_spikes");
-    public static Holder.Reference<SoundEvent> SNOWY_TAIGA = registerReference("music.overworld.snowy_taiga");
-    public static Holder.Reference<SoundEvent> SNOWY_BEACH = registerReference("music.overworld.snowy_beach");
+    private static SelectionMode currentSelectionMode = SelectionMode.VANILLA;
+    private static Identifier selectedGraphNode;
+    private static Identifier selectedVanillaEvent;
+    private static Music selectedVanillaMusic;
+    private static List<Identifier> selectedContextNodes = List.of();
 
-    public static Holder.Reference<SoundEvent> WINDSWEPT_HILLS = registerReference("music.overworld.windswept_hills");
-    public static Holder.Reference<SoundEvent> WINDSWEPT_GRAVELLY_HILLS = registerReference("music.overworld.windswept_gravelly_hills");
-    public static Holder.Reference<SoundEvent> WINDSWEPT_FOREST = registerReference("music.overworld.windswept_forest");
-    public static Holder.Reference<SoundEvent> TAIGA = registerReference("music.overworld.taiga");
-    public static Holder.Reference<SoundEvent> OLD_GROWTH_PINE_TAIGA = registerReference("music.overworld.old_growth_pine_taiga");
-    public static Holder.Reference<SoundEvent> OLD_GROWTH_SPRUCE_TAIGA = registerReference("music.overworld.old_growth_spruce_taiga");
-    public static Holder.Reference<SoundEvent> STONY_SHORE = registerReference("music.overworld.stony_shore");
+    private SoundEventRegistry() {}
 
-    public static Holder.Reference<SoundEvent> PLAINS = registerReference("music.overworld.plains");
-    public static Holder.Reference<SoundEvent> SUNFLOWER_PLAINS = registerReference("music.overworld.sunflower_plains");
-    public static Holder.Reference<SoundEvent> BIRCH_FOREST = registerReference("music.overworld.birch_forest");
-    public static Holder.Reference<SoundEvent> OLD_GROWTH_BIRCH_FOREST = registerReference("music.overworld.old_growth_birch_forest");
-    public static Holder.Reference<SoundEvent> DARK_FOREST = registerReference("music.overworld.dark_forest");
-    //public static RegistryEntry.Reference<SoundEvent> PALE_GARDEN = registerReference("music.overworld.pale_garden");
-    public static Holder.Reference<SoundEvent> MANGROVE_SWAMP = registerReference("music.overworld.mangrove_swamp");
-    public static Holder.Reference<SoundEvent> BEACH = registerReference("music.overworld.beach");
-    public static Holder.Reference<SoundEvent> MUSHROOM_FIELDS = registerReference("music.overworld.mushroom_fields");
-
-    public static Holder.Reference<SoundEvent> SAVANNA = registerReference("music.overworld.savanna");
-    public static Holder.Reference<SoundEvent> SAVANNA_PLATEAU = registerReference("music.overworld.savanna_plateau");
-    public static Holder.Reference<SoundEvent> WINDSWEPT_SAVANNA = registerReference("music.overworld.windswept_savanna");
-    public static Holder.Reference<SoundEvent> WOODED_BADLANDS = registerReference("music.overworld.wooded_badlands");
-    public static Holder.Reference<SoundEvent> ERODED_BADLANDS = registerReference("music.overworld.eroded_badlands");
-
-    public static Holder.Reference<SoundEvent> RIVER = registerReference("music.overworld.river");
-    public static Holder.Reference<SoundEvent> FROZEN_RIVER = registerReference("music.overworld.frozen_river");
-    public static Holder.Reference<SoundEvent> WARM_OCEAN = registerReference("music.overworld.warm_ocean");
-    public static Holder.Reference<SoundEvent> LUKEWARM_OCEAN = registerReference("music.overworld.lukewarm_ocean");
-    public static Holder.Reference<SoundEvent> DEEP_LUKEWARM_OCEAN = registerReference("music.overworld.deep_lukewarm_ocean");
-    public static Holder.Reference<SoundEvent> OCEAN = registerReference("music.overworld.ocean");
-    public static Holder.Reference<SoundEvent> DEEP_OCEAN = registerReference("music.overworld.deep_ocean");
-    public static Holder.Reference<SoundEvent> COLD_OCEAN = registerReference("music.overworld.cold_ocean");
-    public static Holder.Reference<SoundEvent> DEEP_COLD_OCEAN = registerReference("music.overworld.deep_cold_ocean");
-    public static Holder.Reference<SoundEvent> FROZEN_OCEAN = registerReference("music.overworld.frozen_ocean");
-    public static Holder.Reference<SoundEvent> DEEP_FROZEN_OCEAN = registerReference("music.overworld.deep_frozen_ocean");
-
-    public static Holder.Reference<SoundEvent> THE_END = registerReference("music.end.the_end");
-    public static Holder.Reference<SoundEvent> END_HIGHLANDS = registerReference("music.end.end_highlands");
-    public static Holder.Reference<SoundEvent> END_MIDLANDS = registerReference("music.end.end_midlands");
-    public static Holder.Reference<SoundEvent> SMALL_END_ISLANDS = registerReference("music.end.small_end_islands");
-    public static Holder.Reference<SoundEvent> END_BARRENS = registerReference("music.end.end_barrens");
-
-    public static Holder.Reference<SoundEvent> NETHER = registerReference("music.nether");
-
+    /** Graph sound events are resolved dynamically and do not require registry mutation. */
     public static void init() {
-
     }
 
-    private static Holder.Reference<SoundEvent> registerReference(final String path) {
-        Identifier id = Identifier.withDefaultNamespace(path);
-        return Registry.registerForHolder(BuiltInRegistries.SOUND_EVENT, id, SoundEvent.createVariableRangeEvent(id));
+    /**
+     * Returns whether an event is meaningful for the active runtime. Non-biome
+     * events are always available; biome events require at least one matching
+     * biome key captured from the running Minecraft version.
+     */
+    public static boolean isEventAvailable(Identifier event) {
+        var configuredBiomes = MusicGraphManager.current().biomeBindings().entrySet().stream()
+                .filter(entry -> entry.getValue().equals(event))
+                .map(Map.Entry::getKey)
+                .toList();
+        return configuredBiomes.isEmpty()
+                || configuredBiomes.stream().anyMatch(NAME_BIOME_MAP::containsKey);
     }
+
+    public static SelectionMode currentSelectionMode() {
+        return currentSelectionMode;
+    }
+
+    public static Identifier selectedGraphNode() {
+        return selectedGraphNode;
+    }
+
+    public static Identifier selectedVanillaEvent() {
+        return selectedVanillaEvent;
+    }
+
+    public static Music selectedVanillaMusic() {
+        return selectedVanillaMusic;
+    }
+
+    public static List<Identifier> selectedContextNodes() {
+        return selectedContextNodes;
+    }
+
+    /** Stable identity of the vanilla choice plus every effective graph layer. */
+    public static List<Identifier> selectedContextSignature() {
+        ArrayList<Identifier> signature = new ArrayList<>();
+        if (selectedVanillaEvent != null) signature.add(selectedVanillaEvent);
+        for (Identifier node : selectedContextNodes) {
+            if (!signature.contains(node)) signature.add(node);
+        }
+        return List.copyOf(signature);
+    }
+
+    /** Clears state before each complete Minecraft situational-music lookup. */
+    public static void beginSituationalSelection() {
+        currentSelectionMode = SelectionMode.VANILLA;
+        selectedGraphNode = null;
+        selectedVanillaEvent = null;
+        selectedVanillaMusic = null;
+        selectedContextNodes = List.of();
+    }
+
+    /**
+     * Builds the active graph context around the music selected by vanilla and
+     * data-pack biome attributes. The selected vanilla event is retained as the
+     * runtime fallback; a playable override receives the original timing envelope.
+     */
+    public static Optional<Music> resolveBiomeMusic(
+            ResourceKey<Biome> biome,
+            Player player,
+            Level world,
+            Optional<Music> vanillaSelection) {
+        currentSelectionMode = SelectionMode.VANILLA;
+        selectedVanillaMusic = vanillaSelection.orElse(null);
+        selectedVanillaEvent = vanillaSelection.map(music -> music.sound().value().location()).orElse(null);
+        MusicGraphSnapshot graph = MusicGraphManager.current();
+        if (biome != null) {
+            selectedGraphNode = graph.nodeForBiome(biome.identifier());
+        }
+        Identifier dimensionNode = world == null
+                ? null : graph.nodeForDimension(world.dimension().identifier());
+        ArrayList<Identifier> context = initialContext(
+                graph, selectedVanillaEvent, dimensionNode, selectedGraphNode);
+        if (world != null && world.dimension() == Level.OVERWORLD) {
+            if (com.github.charlyb01.music_control.Utils.isNight(world)) {
+                addIfPresent(context, graph,
+                        MusicVersionProfile.current().event(MusicVersionProfile.Event.TIME_NIGHT));
+            }
+            if (world.isRaining()) {
+                addIfPresent(context, graph,
+                        MusicVersionProfile.current().event(MusicVersionProfile.Event.WEATHER_RAIN));
+            }
+            if (world.isThundering()) {
+                addIfPresent(context, graph,
+                        MusicVersionProfile.current().event(MusicVersionProfile.Event.WEATHER_THUNDER));
+            }
+        }
+        if (player != null && player.isPassenger()) {
+            addIfPresent(context, graph, MusicVersionProfile.current().event(
+                    player.getVehicle() instanceof LivingEntity
+                            ? MusicVersionProfile.Event.PLAYER_RIDING
+                            : MusicVersionProfile.Event.PLAYER_DRIVING));
+        }
+        if (player != null && player.isFallFlying()) {
+            addIfPresent(context, graph,
+                    MusicVersionProfile.current().event(MusicVersionProfile.Event.PLAYER_FLYING));
+        }
+        selectedContextNodes = List.copyOf(context);
+
+        MusicGraphSnapshot.ResolutionKind resolution = MusicGraphSnapshot.ResolutionKind.VANILLA;
+        Identifier envelopeNode = null;
+        for (Identifier node : context) {
+            MusicGraphSnapshot.ResolutionKind next = graph.probe(node);
+            if (next == MusicGraphSnapshot.ResolutionKind.VANILLA) continue;
+            resolution = next;
+            if (next == MusicGraphSnapshot.ResolutionKind.OVERRIDE) envelopeNode = node;
+        }
+
+        if (resolution == MusicGraphSnapshot.ResolutionKind.VANILLA) return vanillaSelection;
+        if (resolution == MusicGraphSnapshot.ResolutionKind.SILENT) {
+            currentSelectionMode = SelectionMode.SILENT;
+            return Optional.empty();
+        }
+        currentSelectionMode = SelectionMode.OVERRIDE;
+        SoundEvent event = SoundEvent.createVariableRangeEvent(envelopeNode);
+        if (vanillaSelection.isPresent()) {
+            Music vanilla = vanillaSelection.get();
+            return Optional.of(new Music(
+                    Holder.direct(event),
+                    vanilla.minDelay(),
+                    vanilla.maxDelay(),
+                    vanilla.replaceCurrentMusic()));
+        }
+        return Optional.of(Musics.createGameMusic(Holder.direct(event)));
+    }
+
+    static ArrayList<Identifier> initialContext(
+            MusicGraphSnapshot graph,
+            Identifier vanillaEvent,
+            Identifier dimensionNode,
+            Identifier biomeNode) {
+        ArrayList<Identifier> context = new ArrayList<>();
+        addIfPresent(context, graph, vanillaEvent);
+        addIfPresent(context, graph, dimensionNode);
+        addIfPresent(context, graph, biomeNode);
+        return context;
+    }
+
+    private static void addIfPresent(
+            List<Identifier> context,
+            MusicGraphSnapshot graph,
+            Identifier node) {
+        if (node != null && graph.nodes().containsKey(node) && !context.contains(node)) {
+            context.add(node);
+        }
+    }
+
 }

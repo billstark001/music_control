@@ -1,6 +1,7 @@
 package com.github.charlyb01.music_control.mixin;
 
 import com.github.charlyb01.music_control.categories.Music;
+import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.llamalad7.mixinextras.sugar.Local;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,6 +28,11 @@ public class SoundListMixin {
     private void addEverySound(Identifier id, SoundEventRegistration entry, CallbackInfo ci, @Local(ordinal = 0) ResourceProvider resourceFactory) {
         if (entry.isReplace()) {
             Music.EVENTS_OF_EVENT.remove(id);
+            if (entry.getSounds().isEmpty()) {
+                SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.add(id);
+            } else {
+                SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.remove(id);
+            }
         }
         for (Sound sound : entry.getSounds()) {
             final Identifier identifier = sound.getLocation();
