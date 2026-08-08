@@ -23,10 +23,10 @@ public class CosmeticsConfig implements ConfigData {
     public Gui gui = new Gui();
 
     public static class Gui {
-        @ConfigEntry.BoundedDiscrete(min = 100, max = 250)
-        public int height = 150;
-        @ConfigEntry.BoundedDiscrete(min = 150, max = 450)
-        public int width = 320;
+        @ConfigEntry.BoundedDiscrete(min = 140, max = 300)
+        public int height = 180;
+        @ConfigEntry.BoundedDiscrete(min = 300, max = 600)
+        public int width = 360;
         @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
         public ScrollSpeed scrollSpeed = ScrollSpeed.NORMAL;
         @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)

@@ -2,8 +2,11 @@ package com.github.charlyb01.music_control.gui.components;
 
 import io.github.cottonmc.cotton.gui.widget.TooltipBuilder;
 import io.github.cottonmc.cotton.gui.widget.WTextField;
+import io.github.cottonmc.cotton.gui.widget.WWidget;
+import io.github.cottonmc.cotton.gui.widget.data.InputResult;
 import java.util.ArrayList;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 public class TextField extends WTextField {
@@ -24,6 +27,19 @@ public class TextField extends WTextField {
         for (Component text : this.tooltips) {
             tooltip.add(text);
         }
+    }
+
+    @Override
+    public InputResult onClick(MouseButtonEvent click, boolean doubled) {
+        inheritHostFromParent();
+        return super.onClick(click, doubled);
+    }
+
+    private void inheritHostFromParent() {
+        if (getHost() != null) return;
+        WWidget ancestor = getParent();
+        while (ancestor != null && ancestor.getHost() == null) ancestor = ancestor.getParent();
+        if (ancestor != null) setHost(ancestor.getHost());
     }
 
     @Override

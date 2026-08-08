@@ -1,14 +1,13 @@
 package com.github.charlyb01.music_control.gui;
 
 import com.github.charlyb01.music_control.config.ModConfig;
-import com.github.charlyb01.music_control.gui.components.Button;
-import com.github.charlyb01.music_control.gui.components.ButtonListPanel;
+import com.github.charlyb01.music_control.categories.Music;
+import com.github.charlyb01.music_control.gui.components.ListBox;
 import io.github.cottonmc.cotton.gui.widget.WBox;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
 import io.github.cottonmc.cotton.gui.widget.data.Insets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.function.BiConsumer;
 import net.minecraft.resources.Identifier;
 
 import static com.github.charlyb01.music_control.categories.MusicCategories.PLAYED_MUSICS;
@@ -16,25 +15,23 @@ import static com.github.charlyb01.music_control.categories.MusicCategories.PLAY
 public class HistoryPanel extends WBox {
     public HistoryPanel() {
         super(Axis.VERTICAL);
-        this.setInsets(Insets.ROOT_PANEL);
+        this.setInsets(new Insets(4));
 
         ArrayList<Identifier> musics = new ArrayList<>(PLAYED_MUSICS);
         Collections.reverse(musics);
 
-        BiConsumer<Identifier, Button> onMusicClicked = (Identifier identifier, Button button) -> {
+        ListBox<Identifier> playedList = new ListBox<>(
+                musics,
+                Music::getTranslatedText,
+                ModConfig.get().cosmetics.gui.width,
+                ModConfig.get().cosmetics.gui.height);
+        playedList.setOnSelection((identifier, source) -> {
             PLAYED_MUSICS.remove(identifier);
             musics.remove(identifier);
-            this.layout();
-        };
+            source.setSelected(null);
+            source.refresh();
+        });
 
-        ButtonListPanel playedListPanel = new ButtonListPanel(
-                musics,
-                onMusicClicked,
-                ModConfig.get().cosmetics.gui.width,
-                ModConfig.get().cosmetics.gui.height,
-                false,
-                false);
-
-        this.add(playedListPanel);
+        this.add(playedList);
     }
 }

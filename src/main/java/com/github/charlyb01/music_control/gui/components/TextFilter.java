@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 import net.minecraft.network.chat.Component;
 
 public class TextFilter extends WBox {
-    public static int HEIGHT = 20;
+    public static final int HEIGHT = 18;
 
     private static final Component CLEAR_TEXT = Component.nullToEmpty("×");
     private static final Component PLACEHOLDER_TEXT = Component.translatable("gui.component.filter.placeholder");
@@ -33,6 +33,7 @@ public class TextFilter extends WBox {
     ) {
         super(Axis.HORIZONTAL);
         this.onChange = onChange;
+        this.setSpacing(2);
 
         ArrayList<Component> tooltips = new ArrayList<>(List.of(Component.translatable("gui.component.filter.tooltip"),
                 Component.translatable("gui.component.filter.tooltip1")));
@@ -42,7 +43,7 @@ public class TextFilter extends WBox {
         WButton clearButton = new WButton(CLEAR_TEXT);
         clearButton.setOnClick(() -> this.textField.setText(""));
 
-        this.add(this.textField, width - clearButton.getWidth() - 6, HEIGHT);
+        this.add(this.textField, width - clearButton.getWidth() - 2, HEIGHT);
         this.add(clearButton, clearButton.getWidth(), HEIGHT);
     }
 }

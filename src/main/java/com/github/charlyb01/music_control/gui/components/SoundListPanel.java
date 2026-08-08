@@ -1,53 +1,104 @@
 package com.github.charlyb01.music_control.gui.components;
 
 import com.github.charlyb01.music_control.categories.Music;
-import com.github.charlyb01.music_control.config.ModConfig;
 import io.github.cottonmc.cotton.gui.widget.WBox;
 import io.github.cottonmc.cotton.gui.widget.WCardPanel;
-import io.github.cottonmc.cotton.gui.widget.WToggleButton;
 import io.github.cottonmc.cotton.gui.widget.data.Axis;
-import java.util.ArrayList;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-import static com.github.charlyb01.music_control.categories.Music.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiConsumer;
 
-public class SoundListPanel extends WBox {
-    public SoundListPanel(final BiConsumer<Identifier, Button> onMusicClicked,
-                          final BiConsumer<Identifier, Button> onEventClicked,
-                          final Consumer<Boolean> onToggle,
-                          final int width, final boolean isEventList) {
+import static com.github.charlyb01.music_control.categories.Music.ALL_MUSICS;
+import static com.github.charlyb01.music_control.categories.Music.EVENTS;
+import static com.github.charlyb01.music_control.categories.Music.MUSIC_BY_NAMESPACE;
+
+/** Compact searchable browser for music tracks and sound events. */
+public final class SoundListPanel extends WBox {
+    public enum Kind { MUSIC, EVENT }
+
+    private final SearchableListBox<Identifier> musicList;
+    private final SearchableListBox<Identifier> eventList;
+    private final WCardPanel cards = new WCardPanel();
+    private Kind kind;
+
+    public SoundListPanel(
+            BiConsumer<Identifier, SoundListPanel> onMusic,
+            BiConsumer<Identifier, SoundListPanel> onEvent,
+            BiConsumer<Kind, SoundListPanel> onKindChanged,
+            int width,
+            int height,
+            Kind initialKind) {
         super(Axis.VERTICAL);
+        setSpacing(0);
+        this.kind = initialKind;
 
         ArrayList<Identifier> events = new ArrayList<>(EVENTS);
-        ArrayList<Identifier> musics = new ArrayList<>(MUSIC_BY_NAMESPACE.get(ALL_MUSICS).size());
-        for (Music music : MUSIC_BY_NAMESPACE.get(ALL_MUSICS)) {
-            musics.add(music.getIdentifier());
-        }
+        ArrayList<Identifier> musics = new ArrayList<>();
+        MUSIC_BY_NAMESPACE.getOrDefault(ALL_MUSICS, new java.util.HashSet<>())
+                .forEach(music -> musics.add(music.getIdentifier()));
 
-        ButtonListPanel musicListPanel = new ButtonListPanel(musics, onMusicClicked, width, ModConfig.get().cosmetics.gui.height - 20);
-        ButtonListPanel eventListPanel = new ButtonListPanel(events, onEventClicked, width, ModConfig.get().cosmetics.gui.height - 20);
-        WCardPanel listPanel = new WCardPanel();
-        listPanel.add(musicListPanel);
-        listPanel.add(eventListPanel);
-        if (isEventList) {
-            listPanel.setSelectedCard(eventListPanel);
-        }
+        int listHeight = height - SelectBox.HEIGHT;
+        musicList = searchable(musics, width, listHeight);
+        eventList = searchable(events, width, listHeight);
+        musicList.setOnSelection((value, source) -> onMusic.accept(value, this));
+        eventList.setOnSelection((value, source) -> onEvent.accept(value, this));
+        cards.add(musicList);
+        cards.add(eventList);
 
-        WToggleButton toggleButton = new WToggleButton(Component.translatable("gui.music_control.toggle.musicEvent"));
-        toggleButton.setToggle(isEventList);
-        toggleButton.setOnToggle((Boolean isEvent) -> {
-            onToggle.accept(isEvent);
-            if (isEvent) {
-                listPanel.setSelectedCard(eventListPanel);
-            } else {
-                listPanel.setSelectedCard(musicListPanel);
-            }
+        SelectBox<Kind> kindSelect = new SelectBox<>(List.of(Kind.MUSIC, Kind.EVENT), initialKind,
+                value -> Component.translatable("gui.music_control.browser.kind."
+                        + value.name().toLowerCase(java.util.Locale.ROOT)));
+        kindSelect.setOnChange(value -> {
+            this.kind = value;
+            showCurrentCard();
+            clearSelection();
+            onKindChanged.accept(value, this);
         });
+        add(kindSelect, width, SelectBox.HEIGHT);
+        add(cards, width, listHeight);
+        showCurrentCard();
+    }
 
-        this.add(toggleButton);
-        this.add(listPanel);
+    /** Event-only variant used by the graph editor. */
+    public SoundListPanel(
+            BiConsumer<Identifier, SoundListPanel> onEvent,
+            int width,
+            int height) {
+        super(Axis.VERTICAL);
+        setSpacing(0);
+        this.kind = Kind.EVENT;
+        ArrayList<Identifier> events = new ArrayList<>(EVENTS);
+        this.eventList = searchable(events, width, height);
+        this.musicList = null;
+        eventList.setOnSelection((value, source) -> onEvent.accept(value, this));
+        add(eventList, width, height);
+    }
+
+    private static SearchableListBox<Identifier> searchable(
+            List<Identifier> values, int width, int height) {
+        values.sort(Music.TRANSLATED_ORDER);
+        return new SearchableListBox<>(values, Music::getTranslatedText,
+                IdentifierSearchFilter.INSTANCE, width, height);
+    }
+
+    public Kind kind() {
+        return kind;
+    }
+
+    public void clearSelection() {
+        if (musicList != null) musicList.setSelected(null);
+        eventList.setSelected(null);
+    }
+
+    public void setSelected(Identifier value) {
+        if (kind == Kind.MUSIC && musicList != null) musicList.setSelected(value);
+        else eventList.setSelected(value);
+    }
+
+    private void showCurrentCard() {
+        cards.setSelectedCard(kind == Kind.EVENT ? eventList : musicList);
     }
 }
