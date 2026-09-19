@@ -4,6 +4,15 @@
 * **x.X versions** are either updates that add content or major bug fixes
 * **x.x.X versions** are either small content update (language translation, keybind change, ...) or bug fixes
 
+## v1.10.1
+### Versions
+* Add Fabric support for Minecraft 26.3
+* Add a dedicated Dappled Forest music node and biome binding for Minecraft 26.3
+
+### Fixes
+* Migrate the legacy biome-switch boolean to the new always/never behavior without resetting the configuration
+* Use Minecraft's backend-neutral key constants so keybindings work with the SDL3 input system in 26.3
+
 ## v1.10.0
 ### Versions
 * Add Fabric support for Minecraft 26.1.2 and 26.2 alongside 1.21.11
@@ -14,6 +23,9 @@
 * Discover playable music from the active sound manager while loading biome events, fallback events, and exclusions from a profile bundled with each Minecraft target
 * Route biome music native-first: active data-pack music remains authoritative, while configured synthetic biome events opt in only when they contain music
 * Preserve explicit empty sound events as intentional silence without treating unconfigured synthetic events as silent
+* Resolve each ordered event context once so silence, override envelopes, biome-transition checks, and `half` parent choices cannot disagree
+* Capture Minecraft's final situational-music result and use the main camera biome for graph activation, improving compatibility with camera and music-selection mods
+* Keep zero-volume environments silent by default while allowing explicit tracks, playlists, and graph assignments to override that default intentionally
 * Generate portable native-parent projections so the saved resource pack retains a close approximation when Music Control is removed
 * Resolve all automatic music through a validated event DAG with independent parent-mix and empty-pool behavior
 * Resolve graph rules for the music event selected by Minecraft even when it has no explicit biome binding
