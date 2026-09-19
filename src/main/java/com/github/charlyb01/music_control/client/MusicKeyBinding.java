@@ -14,7 +14,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
-import org.lwjgl.glfw.GLFW;
 
 public class MusicKeyBinding {
     private static final KeyMapping.Category mainCategory = KeyMapping.Category.register(MusicControlClient.id("main"));
@@ -38,71 +37,61 @@ public class MusicKeyBinding {
     private static void registerKeys() {
         previousMusic = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.previousMusic",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_LEFT,
+                InputConstants.KEY_LEFT,
                 mainCategory
         ));
 
         nextMusic = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.nextMusic",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_RIGHT,
+                InputConstants.KEY_RIGHT,
                 mainCategory
         ));
 
         pauseResume = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.pause",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_RIGHT_SHIFT,
+                InputConstants.KEY_RSHIFT,
                 mainCategory
         ));
 
         loopMusic = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.loop",
-                InputConstants.Type.KEYSYM,
                 InputConstants.UNKNOWN.getValue(),
                 mainCategory
         ));
 
         previousCategory = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.previousCategory",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_PAGE_UP,
+                InputConstants.KEY_PAGEUP,
                 mainCategory
         ));
 
         nextCategory = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.nextCategory",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_PAGE_DOWN,
+                InputConstants.KEY_PAGEDOWN,
                 mainCategory
         ));
 
         printMusic = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.print",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_RIGHT_CONTROL,
+                InputConstants.KEY_RCONTROL,
                 mainCategory
         ));
 
         volumeUp = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.volumeUp",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_UP,
+                InputConstants.KEY_UP,
                 mainCategory
         ));
 
         volumeDown = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.volumeDown",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_DOWN,
+                InputConstants.KEY_DOWN,
                 mainCategory
         ));
 
         openMenu = KeyMappingCompat.register(new KeyMapping(
                 "key.music_control.openMenu",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_M,
+                InputConstants.KEY_M,
                 mainCategory
         ));
     }

@@ -72,4 +72,21 @@ class MusicVersionProfileTest {
             assertFalse(profile.portableMembers(parent).isEmpty());
         });
     }
+
+    @Test
+    void minecraft263AddsDappledForestAsAnEditableForestChild() {
+        MusicVersionProfile profile = MusicVersionProfile.current();
+        Identifier dappledBiome = Identifier.parse("minecraft:dappled_forest");
+        Identifier dappledNode = Identifier.parse("minecraft:music.overworld.dappled_forest");
+        Identifier forestNode = Identifier.parse("minecraft:music.overworld.forest");
+
+        if ("26.3".equals(profile.minecraftVersion())) {
+            assertEquals(dappledNode, profile.biomeBindings().get(dappledBiome));
+            assertTrue(profile.nodes().get(dappledNode).parents().contains(forestNode));
+            assertTrue(profile.portableMembers(forestNode).contains(dappledNode));
+        } else {
+            assertNull(profile.biomeBindings().get(dappledBiome));
+            assertFalse(profile.nodes().containsKey(dappledNode));
+        }
+    }
 }

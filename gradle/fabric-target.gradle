@@ -1,4 +1,5 @@
 def target = rootProject.ext.targets[project.ext.minecraftTarget]
+def loaderVersion = target.loader ?: rootProject.loader_version
 
 group = rootProject.maven_group
 version = "${rootProject.mod_version}+${target.minecraft}-fabric"
@@ -107,7 +108,7 @@ dependencies {
 
     if (target.remapped) {
         mappings loom.officialMojangMappings()
-        modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+        modImplementation "net.fabricmc:fabric-loader:${loaderVersion}"
         modImplementation "net.fabricmc.fabric-api:fabric-api:${target.fabricApi}"
         modImplementation "com.terraformersmc:modmenu:${target.modMenu}"
         modApi include("me.shedaniel.cloth:cloth-config-fabric:${target.clothConfig}") {
@@ -115,7 +116,7 @@ dependencies {
         }
         modImplementation include("io.github.cottonmc:LibGui:${target.libGui}")
     } else {
-        implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+        implementation "net.fabricmc:fabric-loader:${loaderVersion}"
         implementation "net.fabricmc.fabric-api:fabric-api:${target.fabricApi}"
         implementation "com.terraformersmc:modmenu:${target.modMenu}"
         api include("me.shedaniel.cloth:cloth-config-fabric:${target.clothConfig}") {
@@ -134,7 +135,7 @@ def resourceProperties = [
     minecraftRange: target.minecraftRange,
     javaVersion: target.javaVersion,
     mixinJava: target.mixinJava,
-    loaderVersion: rootProject.loader_version,
+    loaderVersion: loaderVersion,
     fabricApiVersion: target.fabricApiMin
 ]
 

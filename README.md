@@ -25,7 +25,7 @@ biome or dimension bindings without hard-coding those choices into the mod.
 
 ## Development
 
-The current source tree targets Fabric for Minecraft 1.21.11, 26.1.2, and 26.2. Run the complete build with:
+The current source tree targets Fabric for Minecraft 1.21.11, 26.1.2, 26.2, and 26.3. Run the complete build with:
 
 ```powershell
 .\gradlew.bat buildAll --no-parallel

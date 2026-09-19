@@ -29,6 +29,11 @@ jobs:
             java: "25"
             artifact: music-control-26.2
             jar: versions/fabric-26.2/build/libs/music_control-*+26.2-fabric.jar
+          - minecraft: "26.3"
+            module: versions:fabric-26.3
+            java: "25"
+            artifact: music-control-26.3
+            jar: versions/fabric-26.3/build/libs/music_control-*+26.3-fabric.jar
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
