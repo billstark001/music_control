@@ -91,32 +91,10 @@ public final class MusicGraphSnapshot {
 
     /** Determines whether a node should replace the actual vanilla selection. */
     public ResolutionKind probe(Identifier nodeId) {
-        return probe(nodeId, new HashSet<>());
-    }
-
-    private ResolutionKind probe(Identifier nodeId, Set<Identifier> visited) {
-        Node node = nodes.get(nodeId);
-        if (node == null || !visited.add(nodeId)) return ResolutionKind.VANILLA;
-        boolean direct = !MusicIdentifier.getListFromEvent(node.id()).isEmpty();
-        if (direct && node.options().parentMix() != ParentMix.PARENTS_ONLY) return ResolutionKind.OVERRIDE;
-        if (direct && node.options().parentMix() == ParentMix.PARENTS_ONLY) {
-            return probeParents(node, visited);
-        }
-        return switch (node.options().whenEmpty()) {
-            case VANILLA -> ResolutionKind.VANILLA;
-            case SILENT -> ResolutionKind.SILENT;
-            case PARENTS -> probeParents(node, visited);
-        };
-    }
-
-    private ResolutionKind probeParents(Node node, Set<Identifier> visited) {
-        boolean silent = false;
-        for (Identifier parent : node.parents()) {
-            ResolutionKind kind = probe(parent, new HashSet<>(visited));
-            if (kind == ResolutionKind.OVERRIDE) return ResolutionKind.OVERRIDE;
-            silent |= kind == ResolutionKind.SILENT;
-        }
-        return silent ? ResolutionKind.SILENT : ResolutionKind.VANILLA;
+        PoolSelection selection = resolvePool(
+                nodeId, Set.of(), RandomSource.create(0L));
+        if (selection.silent()) return ResolutionKind.SILENT;
+        return selection.vanilla() ? ResolutionKind.VANILLA : ResolutionKind.OVERRIDE;
     }
 
     public PoolSelection resolvePool(
@@ -176,7 +154,7 @@ public final class MusicGraphSnapshot {
             RandomSource random,
             Set<Identifier> visited) {
         HashSet<Music> combined = new HashSet<>();
-        boolean vanilla = false;
+        boolean overridden = false;
         boolean silent = false;
         for (Identifier parent : node.parents()) {
             PoolSelection selected = resolvePool(parent, vanillaPool, random, new HashSet<>(visited));
@@ -184,12 +162,12 @@ public final class MusicGraphSnapshot {
                 silent = true;
                 continue;
             }
-            vanilla |= selected.vanilla();
+            overridden |= !selected.vanilla();
             combined.addAll(selected.pool());
         }
         if (node.parents().isEmpty()) return PoolSelection.vanilla(new HashSet<>(vanillaPool));
         if (combined.isEmpty() && silent) return PoolSelection.silentSelection();
-        return vanilla ? PoolSelection.vanilla(combined) : PoolSelection.graph(combined);
+        return overridden ? PoolSelection.graph(combined) : PoolSelection.vanilla(combined);
     }
 
     private void validate() {

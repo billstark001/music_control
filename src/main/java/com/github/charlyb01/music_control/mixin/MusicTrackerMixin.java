@@ -140,6 +140,7 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
      */
     @Inject(method = "startPlaying", at = @At("HEAD"), cancellable = true)
     private void onPlay(net.minecraft.sounds.Music instance, CallbackInfo ci) {
+        SoundEventRegistry.useSelectionRandom(this.random);
         // Capture the event id before any cancellation so it is always up to date.
         MusicControlClient.currentEvent = (instance != null && instance.sound() != null)
                 ? instance.sound().value().location() : null;
@@ -182,6 +183,7 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
      */
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void onTick(CallbackInfo ci) {
+        SoundEventRegistry.useSelectionRandom(this.random);
         net.minecraft.sounds.Music musicSound = this.minecraft.getSituationalMusic();
 
         if (MusicControlClient.init && this.minecraft.level != null) {
@@ -231,7 +233,11 @@ public abstract class MusicTrackerMixin implements MusicTrackerAccess {
                 MusicControlClient.currentState, MusicControlClient.currentCategory);
     }
 
-    /** Supplies timing while a user-owned playlist overrides an empty/silent environment. */
+    /**
+     * Supplies timing while player-owned playback overrides an empty or zero-volume
+     * environment. This is intentional: vanilla owns the default, while an explicit
+     * track, category, or graph assignment is allowed to play (including in Pale Garden).
+     */
     @Unique
     private net.minecraft.sounds.Music customPlaybackContext() {
         net.minecraft.sounds.Music vanilla = SoundEventRegistry.selectedVanillaMusic();

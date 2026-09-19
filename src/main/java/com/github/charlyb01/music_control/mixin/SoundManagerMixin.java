@@ -26,6 +26,7 @@ public class SoundManagerMixin implements PauseResumeIMixin {
 
     @Inject(method = "prepare(Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)Lnet/minecraft/client/sounds/SoundManager$Preparations;", at = @At("HEAD"))
     private void resetEventsOfEvent(ResourceManager resourceManager, ProfilerFiller profiler, CallbackInfoReturnable<SoundManager.Preparations> cir) {
+        SoundEventRegistry.invalidateSelectionPlan();
         Music.EVENTS_OF_EVENT.clear();
         SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.clear();
         MusicGraphManager.reload(resourceManager);

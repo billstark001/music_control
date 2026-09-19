@@ -93,7 +93,10 @@ bindings.
 ### Runtime activation context
 
 Minecraft and active data packs remain authoritative for choosing the initial
-background-music event and timing envelope. `SoundEventRegistry` then builds an
+background-music event and timing envelope. The final return of
+`Minecraft.getSituationalMusic()` is captured after the environmental selection,
+and biome bindings use the main camera position just like environment attributes.
+`SoundEventRegistry` then builds an
 ordered, duplicate-free context:
 
 1. the sound event actually selected by Minecraft, if it is a declared graph node;
@@ -102,11 +105,12 @@ ordered, duplicate-free context:
 4. overworld night, rain, and thunder nodes;
 5. riding, driving, and fall-flying nodes.
 
-Each layer resolves against the pool produced by the previous layer. A lightweight
-`probe` first determines whether the context leaves Minecraft's selection unchanged,
-needs a synthetic override event, or enforces silence. An override retains the
-original `Music` timing envelope. Track selection later performs full pool resolution
-using the same ordered context.
+Each layer resolves against the pool produced by the previous layer. The complete
+result is retained as a selection plan containing the pool, silence/override mode,
+and timing-envelope node. This single plan decides whether a synthetic event is
+needed, whether a biome transition is compatible, and which pool playback uses. A
+`HALF` branch is therefore chosen once per pending selection rather than independently
+during preview and playback. An override retains the original `Music` timing envelope.
 
 Dimension activation is deliberately not materialized as parent edges. For example,
 the five vanilla Nether biome events do not list `music.nether` as a parent. Instead,
@@ -161,6 +165,13 @@ Graph silence owns only default environmental playback. It does not stop `CUSTOM
 playback or a non-default user playlist/category. When an environment has no usable
 `Music` envelope, user-owned playback receives a fallback envelope solely for timing;
 track selection still comes from the user's category.
+
+Environment music volume follows the same ownership rule. With no explicit override,
+Minecraft remains responsible for zero-volume environments such as the Pale Garden,
+so default playback stays silent. A manually selected track, a non-default category,
+or music explicitly assigned to a graph node is a deliberate player override and may
+play there. This distinction is intentional: defaults mirror Minecraft, while player
+configuration is allowed to replace them.
 
 ### Tick flow
 

@@ -1,5 +1,6 @@
 package com.github.charlyb01.music_control.client;
 
+import com.github.charlyb01.music_control.categories.MusicIdentifier;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -10,6 +11,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.RandomSource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +36,9 @@ public final class SoundEventRegistry {
     private static Identifier selectedVanillaEvent;
     private static Music selectedVanillaMusic;
     private static List<Identifier> selectedContextNodes = List.of();
+    private static MusicIdentifier.EventMusicPlan selectedPlan;
+    private static MusicGraphSnapshot selectedPlanGraph;
+    private static RandomSource selectionRandom = RandomSource.create();
 
     private SoundEventRegistry() {}
 
@@ -75,6 +80,40 @@ public final class SoundEventRegistry {
         return selectedContextNodes;
     }
 
+    /** Supplies MusicManager's RNG so HALF is decided once for the pending selection. */
+    public static void useSelectionRandom(RandomSource random) {
+        if (random != null) selectionRandom = random;
+    }
+
+    /** Returns the cached full-resolution plan only when it describes this lookup. */
+    public static MusicIdentifier.EventMusicPlan selectionPlan(
+            Identifier vanillaEvent,
+            List<Identifier> contextNodes) {
+        return cachedSelectionPlan(
+                MusicGraphManager.current(), vanillaEvent, contextNodes);
+    }
+
+    private static MusicIdentifier.EventMusicPlan cachedSelectionPlan(
+            MusicGraphSnapshot graph,
+            Identifier vanillaEvent,
+            List<Identifier> contextNodes) {
+        return selectedPlan != null
+                && selectedPlanGraph == graph
+                && selectedPlan.matches(vanillaEvent, contextNodes)
+                ? selectedPlan : null;
+    }
+
+    /** The next completed track selection must receive a fresh HALF decision. */
+    public static void consumeSelectionPlan() {
+        selectedPlan = null;
+        selectedPlanGraph = null;
+    }
+
+    /** Resource reloads replace both graph structure and the sound pools it reads. */
+    public static void invalidateSelectionPlan() {
+        consumeSelectionPlan();
+    }
+
     /** Stable identity of the vanilla choice plus every effective graph layer. */
     public static List<Identifier> selectedContextSignature() {
         ArrayList<Identifier> signature = new ArrayList<>();
@@ -94,6 +133,17 @@ public final class SoundEventRegistry {
         selectedContextNodes = List.of();
     }
 
+    /** Records a final non-environmental return such as screen or End boss music. */
+    public static void captureVanillaMusic(Music vanillaSelection) {
+        currentSelectionMode = SelectionMode.VANILLA;
+        selectedGraphNode = null;
+        selectedVanillaMusic = vanillaSelection;
+        selectedVanillaEvent = vanillaSelection == null
+                ? null : vanillaSelection.sound().value().location();
+        selectedContextNodes = List.of();
+        selectPlan(MusicGraphManager.current());
+    }
+
     /**
      * Builds the active graph context around the music selected by vanilla and
      * data-pack biome attributes. The selected vanilla event is retained as the
@@ -105,6 +155,7 @@ public final class SoundEventRegistry {
             Level world,
             Optional<Music> vanillaSelection) {
         currentSelectionMode = SelectionMode.VANILLA;
+        selectedGraphNode = null;
         selectedVanillaMusic = vanillaSelection.orElse(null);
         selectedVanillaEvent = vanillaSelection.map(music -> music.sound().value().location()).orElse(null);
         MusicGraphSnapshot graph = MusicGraphManager.current();
@@ -140,23 +191,15 @@ public final class SoundEventRegistry {
                     MusicVersionProfile.current().event(MusicVersionProfile.Event.PLAYER_FLYING));
         }
         selectedContextNodes = List.copyOf(context);
+        MusicIdentifier.EventMusicPlan plan = selectPlan(graph);
 
-        MusicGraphSnapshot.ResolutionKind resolution = MusicGraphSnapshot.ResolutionKind.VANILLA;
-        Identifier envelopeNode = null;
-        for (Identifier node : context) {
-            MusicGraphSnapshot.ResolutionKind next = graph.probe(node);
-            if (next == MusicGraphSnapshot.ResolutionKind.VANILLA) continue;
-            resolution = next;
-            if (next == MusicGraphSnapshot.ResolutionKind.OVERRIDE) envelopeNode = node;
-        }
-
-        if (resolution == MusicGraphSnapshot.ResolutionKind.VANILLA) return vanillaSelection;
-        if (resolution == MusicGraphSnapshot.ResolutionKind.SILENT) {
+        if (!plan.override() && !plan.silent()) return vanillaSelection;
+        if (plan.silent()) {
             currentSelectionMode = SelectionMode.SILENT;
             return Optional.empty();
         }
         currentSelectionMode = SelectionMode.OVERRIDE;
-        SoundEvent event = SoundEvent.createVariableRangeEvent(envelopeNode);
+        SoundEvent event = SoundEvent.createVariableRangeEvent(plan.envelopeNode());
         if (vanillaSelection.isPresent()) {
             Music vanilla = vanillaSelection.get();
             return Optional.of(new Music(
@@ -166,6 +209,25 @@ public final class SoundEventRegistry {
                     vanilla.replaceCurrentMusic()));
         }
         return Optional.of(Musics.createGameMusic(Holder.direct(event)));
+    }
+
+    private static MusicIdentifier.EventMusicPlan selectPlan(MusicGraphSnapshot graph) {
+        return selectionPlanOrCreate(
+                graph, selectedVanillaEvent, selectedContextNodes, selectionRandom);
+    }
+
+    static MusicIdentifier.EventMusicPlan selectionPlanOrCreate(
+            MusicGraphSnapshot graph,
+            Identifier vanillaEvent,
+            List<Identifier> contextNodes,
+            RandomSource random) {
+        MusicIdentifier.EventMusicPlan existing = cachedSelectionPlan(
+                graph, vanillaEvent, contextNodes);
+        if (existing != null) return existing;
+        selectedPlan = MusicIdentifier.createEventMusicPlan(
+                graph, vanillaEvent, contextNodes, random);
+        selectedPlanGraph = graph;
+        return selectedPlan;
     }
 
     static ArrayList<Identifier> initialContext(

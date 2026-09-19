@@ -1,6 +1,8 @@
 package com.github.charlyb01.music_control.mixin;
 
 import com.github.charlyb01.music_control.client.SoundEventRegistry;
+import com.github.charlyb01.music_control.platform.WorldCompat;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Minecraft;
@@ -13,6 +15,7 @@ import net.minecraft.world.level.biome.Biome;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -24,26 +27,36 @@ public class MinecraftClientMixin {
     @Shadow
     @Nullable
     public LocalPlayer player;
+    @Unique
+    private boolean music_control$usedBackgroundSelection;
 
     @Inject(method = "getSituationalMusic", at = @At("HEAD"))
     private void resetMusicSelectionMode(CallbackInfoReturnable<Music> cir) {
+        this.music_control$usedBackgroundSelection = false;
         SoundEventRegistry.beginSituationalSelection();
     }
 
-    // Intercept the BackgroundMusic.getCurrent call to modify biome music
+    // Mark the environmental branch; the final return is captured below so later
+    // getSituationalMusic modifiers remain authoritative inputs to the graph.
     @WrapOperation(method = "getSituationalMusic", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/attribute/BackgroundMusic;select(ZZ)Ljava/util/Optional;"))
-    private Optional<Music> modifyBackgroundMusic(BackgroundMusic instance, boolean creative, boolean underwater,
+    private Optional<Music> captureBackgroundMusic(BackgroundMusic instance, boolean creative, boolean underwater,
             Operation<Optional<Music>> original) {
-        Optional<Music> result = original.call(instance, creative, underwater);
+        this.music_control$usedBackgroundSelection = true;
+        return original.call(instance, creative, underwater);
+    }
 
-        // If player is null, return original
-        if (this.player == null) {
-            return result;
+    @ModifyReturnValue(method = "getSituationalMusic", at = @At("RETURN"))
+    private Music applyGraphToFinalMusic(@Nullable Music original) {
+        if (!this.music_control$usedBackgroundSelection || this.player == null) {
+            SoundEventRegistry.captureVanillaMusic(original);
+            return original;
         }
 
         Level world = this.player.level();
-        var registryEntry = world.getBiome(this.player.blockPosition());
+        Minecraft client = (Minecraft) (Object) this;
+        var registryEntry = world.getBiome(WorldCompat.getCameraBlockPosition(client));
         ResourceKey<Biome> registryKey = registryEntry.unwrapKey().orElse(null);
-        return SoundEventRegistry.resolveBiomeMusic(registryKey, this.player, world, result);
+        return SoundEventRegistry.resolveBiomeMusic(
+                registryKey, this.player, world, Optional.ofNullable(original)).orElse(null);
     }
 }

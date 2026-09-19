@@ -9,6 +9,7 @@ import com.github.charlyb01.music_control.config.BiomeSwitchBehavior;
 import com.github.charlyb01.music_control.config.ModConfig;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import static com.github.charlyb01.music_control.categories.Music.*;
@@ -26,9 +27,40 @@ public class MusicIdentifier {
         }
     }
 
+    /**
+     * One complete resolution of an ordered runtime context. In particular, a
+     * {@link com.github.charlyb01.music_control.api.ParentMix#HALF HALF} choice is
+     * made once and retained while a biome transition and its eventual playback
+     * use the plan.
+     */
+    public record EventMusicPlan(
+            Identifier vanillaEvent,
+            List<Identifier> contextNodes,
+            boolean silent,
+            boolean override,
+            Identifier envelopeNode,
+            HashSet<Music> pool) {
+        public EventMusicPlan {
+            contextNodes = List.copyOf(contextNodes);
+            pool = new HashSet<>(pool);
+        }
+
+        public EventMusicSelection selection() {
+            return silent
+                    ? EventMusicSelection.silence()
+                    : EventMusicSelection.playable(new HashSet<>(pool));
+        }
+
+        public boolean matches(Identifier event, List<Identifier> context) {
+            return java.util.Objects.equals(vanillaEvent, event)
+                    && contextNodes.equals(context);
+        }
+    }
+
     public static EventMusicSelection resolveEventMusic(
             final Identifier eventId, final RandomSource random) {
         EventMusicSelection selection = previewEventMusic(eventId, random);
+        SoundEventRegistry.consumeSelectionPlan();
         MusicControlClient.isCurrentEventEmpty = !selection.silent() && selection.pool().isEmpty();
         return selection;
     }
@@ -39,27 +71,38 @@ public class MusicIdentifier {
         MusicGraphSnapshot graph = MusicGraphManager.current();
         Identifier vanillaEvent = SoundEventRegistry.selectedVanillaEvent() != null
                 ? SoundEventRegistry.selectedVanillaEvent() : eventId;
-        HashSet<Music> pool = getListFromEvent(vanillaEvent);
+        List<Identifier> context = SoundEventRegistry.selectedContextNodes();
+        EventMusicPlan planned = SoundEventRegistry.selectionPlan(vanillaEvent, context);
+        return (planned != null
+                ? planned
+                : createEventMusicPlan(graph, vanillaEvent, context, random)).selection();
+    }
 
-        for (Identifier node : SoundEventRegistry.selectedContextNodes()) {
-            EventMusicSelection selection = applyNode(graph, node, pool, random);
-            if (selection.silent()) return selection;
+    /** Resolves every layer in order and stops when full pool resolution says silent. */
+    public static EventMusicPlan createEventMusicPlan(
+            MusicGraphSnapshot graph,
+            Identifier vanillaEvent,
+            List<Identifier> contextNodes,
+            RandomSource random) {
+        HashSet<Music> pool = getListFromEvent(vanillaEvent);
+        boolean override = false;
+        Identifier envelopeNode = null;
+
+        for (Identifier node : contextNodes) {
+            MusicGraphSnapshot.PoolSelection selection = graph.resolvePool(node, pool, random);
+            if (selection.silent()) {
+                return new EventMusicPlan(
+                        vanillaEvent, contextNodes, true, false, null, new HashSet<>());
+            }
+            if (!selection.vanilla()) {
+                override = true;
+                envelopeNode = node;
+            }
             pool = selection.pool();
         }
 
-        return EventMusicSelection.playable(pool);
-    }
-
-    private static EventMusicSelection applyNode(
-            MusicGraphSnapshot graph,
-            Identifier node,
-            HashSet<Music> parentPool,
-            RandomSource random) {
-        if (node == null) return EventMusicSelection.playable(parentPool);
-        MusicGraphSnapshot.PoolSelection selection = graph.resolvePool(node, parentPool, random);
-        return selection.silent()
-                ? EventMusicSelection.silence()
-                : EventMusicSelection.playable(selection.pool());
+        return new EventMusicPlan(
+                vanillaEvent, contextNodes, false, override, envelopeNode, pool);
     }
 
     public static HashSet<Music> getListFromEvent(final Identifier eventId) {
