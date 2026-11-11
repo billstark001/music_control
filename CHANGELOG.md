@@ -6,21 +6,27 @@
 
 ## Unreleased
 
-### Translations
+## v1.10.2
 
-* Add German and refine Ukrainian wording for keybinds, display settings, and playback status
-
-### Development
-
-* Generate Fabric projects from one target matrix and share compatibility adapters across Minecraft versions
-* Share verified release artifacts between GitHub Releases and optional Modrinth publishing
+Supports Fabric on Minecraft 1.21.11, 26.1.2, 26.2, and 26.3.
 
 ### Fixes
 
-* Bind generated IntelliJ IDEA run configurations to the imported Gradle modules
-* Prevent an asynchronously loaded track from starting after it was stopped by a track or category change
-* Keep pending tracks paused and restore the correct music volume when skipping or switching categories during a fade
-* Honor biome replacement with both fades disabled and keep native event-based stops working for resolved tracks
+* Prevent skipped or replaced tracks from starting late and playing over the new track.
+* Respect both the game’s pause and Music Control’s pause while tracks are loading. If the next track is already due when music is unmuted, it can start immediately.
+* Restore normal volume when skipping tracks or switching categories during a fade. Honor biome music replacement rules with both fades disabled, and prevent repeated track changes after fading into a new biome’s music.
+* Let Minecraft stop event music such as the credits even when Music Control has selected a specific track for that event.
+
+### Translations
+
+* Add a complete German translation based on BeityBytes’s contribution.
+* Refine Ukrainian wording for keybinds, display settings, and playback status with changes from StarmanMine142.
+
+### Development
+
+* Generate Fabric projects from one version matrix and share compatibility code across targets.
+* Fix the Gradle module references in generated IntelliJ IDEA client and server run configurations.
+* Build and verify one set of release JARs for GitHub Releases and optional Modrinth publishing. Modrinth publishing is disabled by default.
 
 ## v1.10.1
 ### Versions
