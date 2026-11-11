@@ -63,7 +63,6 @@ public class MusicControlClient implements ClientModInitializer {
      * Set and cleared exclusively by the pause/resume key handler.</p>
      */
     public static boolean isPaused = false;
-    public static boolean shouldPlay = true;
     public static boolean isCurrentEventEmpty = false;
     public static boolean categoryChanged = false;
     public static Identifier musicSelected;

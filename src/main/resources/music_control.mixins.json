@@ -10,8 +10,11 @@
   ],
   "client": [
     "BiomeKeysMixin",
+    "ChannelAccessAccessor",
     "GameOptionsMixin",
     "MinecraftClientMixin",
+    "MusicChannelHandleMixin",
+    "MusicChannelMixin",
     "MusicFrequencyAccess",
     "MusicTrackerMixin",
     "SoundListMixin",

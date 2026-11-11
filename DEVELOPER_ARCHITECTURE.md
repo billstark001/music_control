@@ -185,10 +185,11 @@ world and reproduces the necessary stages in a fixed order:
 2. If the graph says `SILENT` and playback is default environmental playback, advance
    policy fade-out, hold the delay at `Integer.MAX_VALUE`, and stop at zero gain.
 3. Otherwise leave policy silence, restoring gain and a frequency-derived delay.
-4. Advance `FADE_IN` or `FADE_OUT` if configured.
-5. Detect a naturally finished sound and obtain the next delay from Minecraft's
+4. Detect a naturally finished sound and obtain the next delay from Minecraft's
    selected `MusicFrequency` policy.
-6. Decrement the delay while unpaused and start the next track at zero.
+5. Apply biome replacement immediately or advance the configured fade.
+6. Decrement the delay while unpaused and start the next track at zero when music
+   volume permits it.
 7. Process user key requests at end-of-client-tick through the same start path.
 
 Every start passes through the injected `startPlaying` gate. Selection priority is:
@@ -203,11 +204,17 @@ Every start passes through the injected `startPlaying` gate. Selection priority 
 instance, and dismisses the toast together, preventing split state and duplicate
 playback.
 
+The sound engine invalidates a stopped music handle before its decode callback can
+start it. The audio thread releases the old source in queue order, while stream
+close runs on Minecraft's I/O pool. Music channels defer playback while either
+the game or Music Control has paused them.
+
 ### Transitions
 
 ```text
 MINECRAFT -- incompatible/forced biome change + fade-out --> FADE_OUT
 MINECRAFT -- incompatible/forced biome change + fade-in  --> FADE_IN
+MINECRAFT -- incompatible/forced biome change + no fade  --> immediate replacement
 FADE_OUT  -- gain reaches 0 + fade-in configured         --> FADE_IN
 FADE_OUT  -- gain reaches 0 + no fade-in                  --> MINECRAFT
 FADE_IN   -- gain reaches 1                               --> MINECRAFT

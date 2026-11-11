@@ -14,6 +14,9 @@
 ### Fixes
 
 * Bind generated IntelliJ IDEA run configurations to the imported Gradle modules
+* Prevent an asynchronously loaded track from starting after it was stopped by a track or category change
+* Keep pending tracks paused and restore the correct music volume when skipping or switching categories during a fade
+* Honor biome replacement with both fades disabled and keep native event-based stops working for resolved tracks
 
 ## v1.10.1
 ### Versions

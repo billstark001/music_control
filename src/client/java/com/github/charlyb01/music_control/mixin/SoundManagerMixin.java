@@ -1,7 +1,6 @@
 package com.github.charlyb01.music_control.mixin;
 
 import com.github.charlyb01.music_control.categories.Music;
-import com.github.charlyb01.music_control.client.MusicControlClient;
 import com.github.charlyb01.music_control.client.MusicGraphManager;
 import com.github.charlyb01.music_control.client.SoundEventRegistry;
 import com.github.charlyb01.music_control.imixin.PauseResumeIMixin;
@@ -30,13 +29,6 @@ public class SoundManagerMixin implements PauseResumeIMixin {
         Music.EVENTS_OF_EVENT.clear();
         SoundEventRegistry.EXPLICITLY_EMPTY_EVENTS.clear();
         MusicGraphManager.reload(resourceManager);
-    }
-
-    @Inject(method = "resume", at = @At("TAIL"))
-    private void dontResumeIfPaused(CallbackInfo ci) {
-        if (MusicControlClient.isPaused) {
-            this.music_control$pauseMusic();
-        }
     }
 
     @Override
