@@ -72,13 +72,12 @@ loom {
     }
 }
 
-// Loom's IDEA application template does not select a JRE. Without these
-// per-target options IDEA falls back to the project SDK, which may be Java 21
-// even when Gradle itself runs on Java 25.
+// Match IDEA's imported module names and select the Java SDK for each target.
 tasks.named("ideaSyncTask").configure {
     dependsOn(rootProject.tasks.named("cleanIdeaRunConfigurations"))
     doLast {
-        def moduleMarker = "<module name=\"${rootProject.name}.versions.fabric-${target.minecraft}.main\""
+        def generatedModuleMarker = "<module name=\"${rootProject.name}.versions.fabric-${target.minecraft}.main\""
+        def moduleMarker = "<module name=\"${rootProject.name}.versions.fabric-${target.minecraft.replace('.', '_')}.main\""
         def runConfigurationsDirectory = rootProject.file(".idea/runConfigurations")
         if (!runConfigurationsDirectory.isDirectory()) return
 
@@ -90,7 +89,8 @@ tasks.named("ideaSyncTask").configure {
                 !it.contains('name="ALTERNATIVE_JRE_PATH"') &&
                     !it.contains('name="ALTERNATIVE_JRE_PATH_ENABLED"')
             }
-            if (!lines.any { it.contains(moduleMarker) }) return
+            if (!lines.any { it.contains(generatedModuleMarker) || it.contains(moduleMarker) }) return
+            lines = lines.collect { it.replace(generatedModuleMarker, moduleMarker) }
 
             def configurationLine = lines.findIndexOf { it.contains("<configuration ") }
             if (configurationLine < 0) {

@@ -10,6 +10,10 @@
 
 * Generate Fabric projects from one target matrix and share compatibility adapters across Minecraft versions
 
+### Fixes
+
+* Bind generated IntelliJ IDEA run configurations to the imported Gradle modules
+
 ## v1.10.1
 ### Versions
 * Add Fabric support for Minecraft 26.3
