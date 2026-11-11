@@ -6,12 +6,14 @@ specified separately in [META_FORMAT.md](META_FORMAT.md).
 
 ## Build and dependency layout
 
-The root source set contains version-independent gameplay, graph, GUI, and mixin
-code. Each `versions/fabric-<minecraft>` project adds one narrow
-`versions/shared-mc-<minecraft>` compatibility source set and its own resources.
-`buildAll` builds every supported target (including its tests) and synchronizes one
-runtime JAR per version into `build/modrinth`; `checkAll` runs the corresponding
-verification tasks for all targets.
+`gradle/targets.gradle` drives the generated `versions/fabric-<minecraft>` projects and their aggregate build tasks. Each target compiles the same source directories.
+
+- `src/main` contains the graph API, shared types, assets, and Mixin configuration.
+- `src/client/java` contains client behavior, the GUI, Mixins, and Minecraft API adapters.
+- `src/fabric` contains Fabric integration and metadata. Each target picks up its access widener and music profile from `src/fabric/versions/<minecraft>/resources`.
+- `src/test/java` is compiled and tested against each Minecraft target.
+
+Manifold resolves `MC_VERSION` branches in the compatibility adapters at compile time. The published source JARs contain the resolved sources for their target. `buildAll` builds and tests every target and collects one runtime JAR per version in `build/modrinth`. `checkAll` runs the verification tasks for all targets.
 
 LibGui is a normal external Gradle dependency at compile time, but it is shipped
 inside every runtime mod JAR. `gradle/fabric-target.gradle` declares it as

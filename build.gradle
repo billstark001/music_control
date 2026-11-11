@@ -4,57 +4,7 @@ plugins {
     id "net.fabricmc.fabric-loom-remap" version "${loom_version}" apply false
 }
 
-ext.targets = [
-    "1.21.11": [
-        minecraft: "1.21.11",
-        javaVersion: 21,
-        mixinJava: "JAVA_21",
-        fabricApi: "0.141.4+1.21.11",
-        fabricApiMin: "0.141.4",
-        modMenu: "17.0.1-beta.1",
-        clothConfig: "21.11.153",
-        libGui: "15.1.0+1.21.11",
-        minecraftRange: "~1.21.11",
-        remapped: true
-    ],
-    "26.1.2": [
-        minecraft: "26.1.2",
-        javaVersion: 25,
-        mixinJava: "JAVA_25",
-        fabricApi: "0.151.0+26.1.2",
-        fabricApiMin: "0.151.0",
-        modMenu: "18.0.0",
-        clothConfig: "26.1.154",
-        libGui: "16.0.1+26.1",
-        minecraftRange: "~26.1.2",
-        remapped: false
-    ],
-    "26.2": [
-        minecraft: "26.2",
-        javaVersion: 25,
-        mixinJava: "JAVA_25",
-        fabricApi: "0.152.2+26.2",
-        fabricApiMin: "0.152.2",
-        modMenu: "20.0.1",
-        clothConfig: "26.2.155",
-        libGui: "17.0.0+26.2",
-        minecraftRange: "~26.2",
-        remapped: false
-    ],
-    "26.3": [
-        minecraft: "26.3",
-        javaVersion: 25,
-        mixinJava: "JAVA_25",
-        loader: "0.19.5",
-        fabricApi: "0.161.0+26.3",
-        fabricApiMin: "0.161.0",
-        modMenu: "21.0.0-beta.1",
-        clothConfig: "26.3.158",
-        libGui: "18.0.1+26.3-rc-2",
-        minecraftRange: "~26.3",
-        remapped: false
-    ]
-]
+apply from: rootProject.file("gradle/targets.gradle")
 
 def fabricProjectPaths = targets.keySet().collect { ":versions:fabric-${it}" }
 
@@ -71,6 +21,15 @@ tasks.register("syncIdeaRunConfigurations") {
     group = "ide"
     description = "Recreates IDEA run configurations for every configured Fabric target."
     dependsOn(fabricProjectPaths.collect { "${it}:ideaSyncTask" })
+}
+
+targets.each { minecraft, target ->
+    project(":versions:fabric-${minecraft}") {
+        ext.minecraftTarget = minecraft
+        pluginManager.apply(target.remapped ? "net.fabricmc.fabric-loom-remap" : "net.fabricmc.fabric-loom")
+        pluginManager.apply("maven-publish")
+        apply from: rootProject.file("gradle/fabric-target.gradle")
+    }
 }
 
 tasks.register("buildAll") {

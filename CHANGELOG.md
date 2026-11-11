@@ -4,6 +4,12 @@
 * **x.X versions** are either updates that add content or major bug fixes
 * **x.x.X versions** are either small content update (language translation, keybind change, ...) or bug fixes
 
+## Unreleased
+
+### Development
+
+* Generate Fabric projects from one target matrix and share compatibility adapters across Minecraft versions
+
 ## v1.10.1
 ### Versions
 * Add Fabric support for Minecraft 26.3

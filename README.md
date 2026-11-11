@@ -50,12 +50,10 @@ targets instead of leaving stale entries in IDEA.
 
 When adding or removing a Minecraft target:
 
-1. Add or remove its metadata entry in `build.gradle`.
-2. Add or remove the matching `versions/fabric-<minecraft>` project in `settings.gradle` and its source directories.
-3. Update the CI and release matrices in `.github/workflows`.
+1. Add or remove its entry in `gradle/targets.gradle`. Gradle creates the corresponding `versions/fabric-<minecraft>` project from that matrix.
+2. Update the compatibility branches and the target's access widener and music profile under `src/fabric/versions/<minecraft>/resources`.
+3. Update the CI matrix in `.github/workflows/ci.yml`.
 4. Reload the Gradle project, or run `syncIdeaRunConfigurations`.
 
-The aggregate `buildAll`, `collectModrinthArtifacts`, and `checkAll` tasks derive their project lists from `targets`, so
-they do not need separate updates when the target list changes. See [META_FORMAT.md](META_FORMAT.md) for resource-pack
-formats and [DEVELOPER_ARCHITECTURE.md](DEVELOPER_ARCHITECTURE.md) for the event graph, playback state machine, and
-nested dependency layout.
+See [META_FORMAT.md](META_FORMAT.md) for resource-pack formats and
+[DEVELOPER_ARCHITECTURE.md](DEVELOPER_ARCHITECTURE.md) for the source layout, event graph, playback state machine, and nested dependencies.

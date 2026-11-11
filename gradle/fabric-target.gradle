@@ -1,5 +1,6 @@
 def target = rootProject.ext.targets[project.ext.minecraftTarget]
 def loaderVersion = target.loader ?: rootProject.loader_version
+def targetResources = rootProject.file("src/fabric/versions/${target.minecraft}/resources")
 
 group = rootProject.maven_group
 version = "${rootProject.mod_version}+${target.minecraft}-fabric"
@@ -33,12 +34,13 @@ sourceSets {
     main {
         java.srcDirs = [
             rootProject.file("src/main/java"),
-            rootProject.file("versions/shared-mc-${target.minecraft}/src/main/java"),
-            project.file("src/main/java")
+            rootProject.file("src/client/java"),
+            rootProject.file("src/fabric/java")
         ]
         resources.srcDirs = [
             rootProject.file("src/main/resources"),
-            project.file("src/main/resources")
+            rootProject.file("src/fabric/resources"),
+            targetResources
         ]
     }
     test {
@@ -48,7 +50,7 @@ sourceSets {
 }
 
 loom {
-    accessWidenerPath = project.file("src/main/resources/music_control.accesswidener")
+    accessWidenerPath = new File(targetResources, "music_control.accesswidener")
     mods {
         "music_control" {
             sourceSet sourceSets.main
@@ -166,6 +168,8 @@ java {
     sourceCompatibility = JavaVersion.toVersion(target.javaVersion)
     targetCompatibility = JavaVersion.toVersion(target.javaVersion)
 }
+
+apply from: rootProject.file("gradle/manifold.gradle")
 
 jar {
     from(rootProject.file("LICENSE")) {
