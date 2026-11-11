@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+### Translations
+
+* Add German and refine Ukrainian wording for keybinds, display settings, and playback status
+
 ### Development
 
 * Generate Fabric projects from one target matrix and share compatibility adapters across Minecraft versions
