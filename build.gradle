@@ -7,6 +7,11 @@ plugins {
 apply from: rootProject.file("gradle/targets.gradle")
 
 def fabricProjectPaths = targets.keySet().collect { ":versions:fabric-${it}" }
+def releaseDirectory = layout.buildDirectory.dir("modrinth")
+def releaseArtifacts = targets.collectEntries { targetName, target ->
+    def filename = "${archives_base_name}-${mod_version}+${target.minecraft}-fabric.jar".toString()
+    [(targetName): [minecraft: target.minecraft, filename: filename]]
+}
 
 tasks.register("cleanIdeaRunConfigurations", Delete) {
     group = "ide"
@@ -42,12 +47,34 @@ tasks.register("collectModrinthArtifacts", Sync) {
     group = "build"
     description = "Collects one release jar per supported target for Modrinth."
     dependsOn(fabricProjectPaths.collect { "${it}:build" })
-    into(layout.buildDirectory.dir("modrinth"))
+    into(releaseDirectory)
 
-    targets.each { targetName, target ->
+    releaseArtifacts.each { targetName, artifact ->
         from(project(":versions:fabric-${targetName}").layout.buildDirectory.dir("libs")) {
-            include "${archives_base_name}-${mod_version}+${target.minecraft}-fabric.jar"
+            include artifact.filename
         }
+    }
+}
+
+tasks.register("writeReleaseManifest") {
+    group = "build"
+    description = "Verifies the collected JAR names and writes the release target matrix."
+    dependsOn("collectModrinthArtifacts")
+
+    def artifacts = releaseArtifacts.values().toList()
+    def jars = fileTree(releaseDirectory) { include "*.jar" }
+    def manifest = layout.buildDirectory.file("release-manifest.json")
+    inputs.files(jars).withPathSensitivity(PathSensitivity.NAME_ONLY)
+    inputs.property("releaseArtifacts", artifacts)
+    outputs.file(manifest)
+
+    doLast {
+        def expected = artifacts.collect { it.filename }.sort()
+        def actual = jars.files.collect { it.name }.sort()
+        if (actual != expected) {
+            throw new GradleException("Expected release JARs ${expected}, found ${actual}")
+        }
+        manifest.get().asFile.setText(groovy.json.JsonOutput.toJson([targets: artifacts]), "UTF-8")
     }
 }
 

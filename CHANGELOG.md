@@ -9,6 +9,7 @@
 ### Development
 
 * Generate Fabric projects from one target matrix and share compatibility adapters across Minecraft versions
+* Share verified release artifacts between GitHub Releases and optional Modrinth publishing
 
 ### Fixes
 

@@ -3,50 +3,193 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish or retry
+        required: true
+        type: string
+      publish_modrinth:
+        description: Also publish this tag to Modrinth
+        default: false
+        type: boolean
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      channel: ${{ steps.metadata.outputs.channel }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      targets: ${{ steps.artifacts.outputs.targets }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Validate release version and extract notes
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ || "$RELEASE_TAG" != "v$version" ]]; then
+            echo "::error::The tag must match the version in gradle.properties."
+            exit 1
+          fi
+
+          awk -v heading="## $RELEASE_TAG" '
+            /^## / { if (found) exit; found = ($0 == heading); next }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::No release notes found under ## $RELEASE_TAG in CHANGELOG.md."
+            exit 1
+          fi
+
+          case "$version" in
+            *-alpha*) channel=alpha ;;
+            *-*) channel=beta ;;
+            *) channel=release ;;
+          esac
+          prerelease=false
+          if [[ "$channel" != release ]]; then
+            prerelease=true
+          fi
+          {
+            echo "tag=$RELEASE_TAG"
+            echo "version=$version"
+            echo "channel=$channel"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v6
-      - name: Validate release version
+      - name: Build and verify every release JAR
+        id: artifacts
         shell: bash
         run: |
-          tag_version="${GITHUB_REF_NAME#v}"
-          project_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
-          if [[ "$tag_version" != "$project_version" ]]; then
-            echo "Tag version $tag_version does not match mod_version $project_version" >&2
-            exit 1
-          fi
-      - name: Build every supported target
-        run: ./gradlew clean buildAll --no-parallel --stacktrace
-      - name: Extract release notes
+          set -euo pipefail
+          ./gradlew clean writeReleaseManifest --no-parallel --stacktrace
+          mkdir -p build/release
+          cp build/modrinth/*.jar release-notes.md build/release/
+          targets="$(jq -ce '.targets | select(length > 0)' build/release-manifest.json)"
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ steps.metadata.outputs.tag }}
+          path: build/release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-github:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: release-${{ needs.build.outputs.tag }}
+          path: release
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: Music Control ${{ needs.build.outputs.tag }}
+          body_path: release/release-notes.md
+          prerelease: ${{ needs.build.outputs.prerelease }}
+          files: release/*.jar
+          fail_on_unmatched_files: true
+
+  publish-modrinth:
+    needs: build
+    if: >-
+      ${{ vars.MODRINTH_PROJECT_ID != '' &&
+          ((github.event_name == 'push' && vars.MODRINTH_AUTO_PUBLISH == 'true') ||
+           (github.event_name == 'workflow_dispatch' && inputs.publish_modrinth)) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.build.outputs.targets) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: release-${{ needs.build.outputs.tag }}
+          path: release
+
+      - name: Check for an existing Modrinth version
+        id: modrinth
         shell: bash
-        run: |
-          tag_version="${GITHUB_REF_NAME#v}"
-          awk -v heading="## v${tag_version}" '
-            $0 == heading { found = 1; next }
-            found && /^## v/ { exit }
-            found { print }
-          ' CHANGELOG.md > release-notes.md
-          if [[ ! -s release-notes.md ]]; then
-            echo "No changelog section found for v${tag_version}" >&2
-            exit 1
-          fi
-      - name: Publish GitHub release
         env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}+${{ matrix.minecraft }}-fabric
+          MINECRAFT: ${{ matrix.minecraft }}
+          JAR: release/${{ matrix.filename }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            build/modrinth/*.jar \
-            --title "Music Control $GITHUB_REF_NAME" \
-            --notes-file release-notes.md
+          set -euo pipefail
+          if [[ -z "$MODRINTH_TOKEN" ]]; then
+            echo "::error::Modrinth publishing requires the MODRINTH_TOKEN repository secret."
+            exit 1
+          fi
+
+          versions="$(curl --fail --silent --show-error --retry 2 \
+            --user-agent "MusicControlRelease/1.0 (+https://github.com/$GITHUB_REPOSITORY)" \
+            --header "Authorization: $MODRINTH_TOKEN" \
+            "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID/version?include_changelog=false")"
+          matches="$(jq -c --arg version "$VERSION" '[.[] | select(.version_number == $version)]' <<< "$versions")"
+          if [[ "$matches" == '[]' ]]; then
+            echo "upload=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          hash="$(sha512sum "$JAR" | cut -d ' ' -f1)"
+          if ! jq -e --arg game "$MINECRAFT" --arg hash "$hash" '
+            length == 1 and (.[0] | .game_versions == [$game] and .loaders == ["fabric"]
+              and any(.files[]; .primary and .hashes.sha512 == $hash))
+          ' <<< "$matches" > /dev/null; then
+            echo "::error::Modrinth version $VERSION already exists with a different artifact or target."
+            exit 1
+          fi
+          echo "::notice::Modrinth already has $VERSION with the same artifact."
+
+      - name: Publish Minecraft ${{ matrix.minecraft }} to Modrinth
+        if: steps.modrinth.outputs.upload == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release/${{ matrix.filename }}
+          name: Music Control ${{ needs.build.outputs.tag }} for Minecraft ${{ matrix.minecraft }}
+          version: ${{ needs.build.outputs.version }}+${{ matrix.minecraft }}-fabric
+          version-type: ${{ needs.build.outputs.channel }}
+          changelog-file: release/release-notes.md
+          game-versions: ${{ matrix.minecraft }}
+          game-version-filter: none
+          loaders: fabric
+          environment: client
+          dependencies: fabric-api(required)
+          modrinth-unfeature-mode: none
+          retry-attempts: 1

@@ -57,3 +57,13 @@ When adding or removing a Minecraft target:
 
 See [META_FORMAT.md](META_FORMAT.md) for resource-pack formats and
 [DEVELOPER_ARCHITECTURE.md](DEVELOPER_ARCHITECTURE.md) for the source layout, event graph, playback state machine, and nested dependencies.
+
+### Publishing
+
+Set `mod_version` in `gradle.properties`, move the release notes from `Unreleased` into a matching `## v<version>` section,
+and push the corresponding tag. The release workflow builds the targets once and publishes their runtime JARs to GitHub.
+To retry an existing tag, run the Release workflow manually with that tag.
+
+Modrinth publishing is disabled by default. Configure the `MODRINTH_PROJECT_ID` repository variable and the
+`MODRINTH_TOKEN` repository secret, then set `MODRINTH_AUTO_PUBLISH` to `true` for tag pushes or select
+`publish_modrinth` on a manual run. Modrinth receives one Fabric JAR per Minecraft version. A retry skips already published versions whose artifacts and targets match.
